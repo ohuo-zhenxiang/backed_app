@@ -3,3 +3,5 @@ SQLALCHEMY_DATABASE_URI: str = 'postgresql://postgres:postgres@localhost:5432/fa
 
 FIRST_SUPERUSER: str = "admin"
 FIRST_SUPERUSER_PASSWORD: str = "admin"
+
+UPLOAD_DIR = "./data"
