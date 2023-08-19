@@ -10,9 +10,9 @@ class Base:
     __name__: str
 
     # Generate __tablename__ automatically, declared_attr装饰器动态创建一个__tablename__属性，值是类名的小写形式
-    @declared_attr
-    def __tablename__(cls) -> str:
-        return cls.__name__.lower()
+    # @declared_attr
+    # def __tablename__(cls) -> str:
+    #     return cls.__name__.lower()
 
 
 

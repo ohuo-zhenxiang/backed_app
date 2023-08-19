@@ -33,4 +33,12 @@ class FaceInDBBase(FaceBase):
     class Config:
         orm_mode = True
 
+
+class MembersInGroup(BaseModel):
+    value: int
+    label: str
+
+    class Config:
+        orm_mode = True
+
 # Additional properties to return via API

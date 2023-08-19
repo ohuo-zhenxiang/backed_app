@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Request
+from typing import List
+
+from fastapi import FastAPI, Request, Form, File, UploadFile
 import uvicorn
 from starlette.middleware.cors import CORSMiddleware
 from pprint import pprint
@@ -11,15 +13,11 @@ app.add_middleware(CORSMiddleware,
                    allow_headers=["*"])
 
 
-class Post_data(BaseModel):
-    username: str
-    password: str
 
-
-@app.post("/api/login/access-token")
-def get_what(postData:Post_data):
-    data = postData.json()
-    pprint(data)
+@app.post("/api/faces/add_test_face")
+async def get_what(file: UploadFile = File()):
+    print(file)
+    return {"result": "ok"}
 
 
 if __name__ == "__main__":
