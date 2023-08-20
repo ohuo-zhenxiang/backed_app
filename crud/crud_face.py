@@ -29,6 +29,7 @@ class CRUDFace(CRUDBase[Face, FaceCreate, FaceUpdate]):
     def delete_face_by_id(self, db: Session, *, id: int) -> bool:
         db_obj = self.get_face_by_id(db, id=id)
         os.remove(db_obj.face_image_path)
+        db_obj.group.clear()
         db.delete(db_obj)
         db.commit()
         return True

@@ -49,7 +49,7 @@ async def delete_group(group_id: int, db: Session = Depends(deps.get_db)):
     """
     group = crud.crud_group.get_group_by_id(db, group_id)
     if group:
-        crud.crud_group.remove_group_by_id(db, group_id)
+        crud.crud_group.remove_group(db, group)
         return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Group {group_id} deleted"})
     else:
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
@@ -81,7 +81,6 @@ async def get_group_members(group_id: int, db: Session = Depends(deps.get_db)) -
         result = db.query(models.Face.id.label('value')).join(models.Group.members).filter(
             models.Group.id == group_id).all()
         result = [int(i[0]) for i in result]
-        print(result)
         return result
 
 
@@ -92,24 +91,37 @@ async def get_all_members(db: Session = Depends(deps.get_db)) -> Any:
     """
     result = db.query(models.Face.id.label('value'), func.concat(models.Face.name, '-', models.Face.phone)
                       .label('label')).order_by(models.Face.id).all()
-    print(result)
     return result
 
 
-@router.post("/add_group_members/{group_id}")
-async def add_group_members(group_id: int, member_ids: List[int], db: Session = Depends(deps.get_db)):
+@router.put("/update_group_members/{group_id}")
+async def update_group_members(group_id: int, member_ids: List[int], db: Session = Depends(deps.get_db)):
     """
-    Add members to group
+    Update group members
     """
-    print(member_ids)
-    print(group_id)
     group = db.query(models.Group).filter(models.Group.id == group_id).first()
     if group:
-        faces = db.query(models.Face).filter(models.Face.id.in_(member_ids)).all()
-        group.members.extend(faces)
+        group.members.clear()
+        new_members = db.query(models.Face).filter(models.Face.id.in_(member_ids)).all()
+        group.members.extend(new_members)
         db.commit()
         return JSONResponse(status_code=status.HTTP_200_OK,
-                            content={"message": f"Members added to group {group.name} successfully"})
-    else:
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
-                            content={"message": f"Group {group_id} does not exist"})
+                            content={"message": f"Group {group_id}"})
+
+# @router.post("/add_group_members/{group_id}")
+# async def add_group_members(group_id: int, member_ids: List[int], db: Session = Depends(deps.get_db)):
+#     """
+#     Add members to group
+#     """
+#     print(member_ids)
+#     print(group_id)
+#     group = db.query(models.Group).filter(models.Group.id == group_id).first()
+#     if group:
+#         faces = db.query(models.Face).filter(models.Face.id.in_(member_ids)).all()
+#         group.members.extend(faces)
+#         db.commit()
+#         return JSONResponse(status_code=status.HTTP_200_OK,
+#                             content={"message": f"Members added to group {group.name} successfully"})
+#     else:
+#         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
+#                             content={"message": f"Group {group_id} does not exist"})

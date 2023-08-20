@@ -15,11 +15,11 @@ class CRUDGroup(CRUDBase[Group, GroupCreate, GroupUpdate]):
         db.refresh(db_obj)
         return db_obj
 
-    def get_group_by_id(self, db: Session, *, id: int) -> Optional[Group]:
+    def get_group_by_id(self, db: Session, id: int) -> Optional[Group]:
         return db.query(Group).filter(Group.id == id).first()
 
-    def remove_group_by_id(self, db: Session, *, id: int) -> Optional[Group]:
-        db_obj = db.query(Group).filter(Group.id == id).first()
+    def remove_group(self, db: Session, db_obj) -> Optional[Group]:
+        db_obj.members.clear()
         db.delete(db_obj)
         db.commit()
         return db_obj
