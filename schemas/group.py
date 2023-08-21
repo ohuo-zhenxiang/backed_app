@@ -10,6 +10,7 @@ class GroupBase(BaseModel):
 
 class GroupSelect(GroupBase):
     id: int
+    member_count: Optional[int]
 
     class Config:
         orm_mode = True
