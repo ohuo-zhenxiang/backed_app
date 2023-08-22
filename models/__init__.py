@@ -3,3 +3,4 @@
 from .user import User
 from .face import Face
 from .group import Group
+from .task import Task, Record
