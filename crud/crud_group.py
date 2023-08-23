@@ -2,7 +2,7 @@ from typing import Any, Optional, List, Type
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
-from crud.crud_user import CRUDBase
+from crud.crud_base import CRUDBase
 from models import Group, Face
 from schemas import GroupCreate, GroupUpdate
 

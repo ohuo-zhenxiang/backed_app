@@ -1,3 +1,4 @@
+from apscheduler.executors.pool import ProcessPoolExecutor
 from fastapi import FastAPI
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -8,12 +9,14 @@ import time
 import uuid
 import json
 from pytz import timezone
-
+from api.face_core.MainTask import SnapAnalysis
+from api.face_core.RetinaFace_detect import RetinaFace
 
 app = FastAPI()
+process_executor = ProcessPoolExecutor(10)
 
 # 初始化调度器和Redis
-scheduler = BackgroundScheduler(timezone=timezone('Asia/Shanghai'))
+scheduler = BackgroundScheduler(timezone=timezone('Asia/Shanghai'), executors={'process': process_executor})
 redis = Redis(host='localhost', port=6379, db=6, password='redis')
 
 # 关闭应用时关闭调度器
@@ -25,15 +28,22 @@ def my_job(task_id):
     time.sleep(2.5)
 
 
+detector_path = '../api/face_core/model/det_10g.onnx'
+
+
 @app.post("/add_task")
 async def add_task(task_name: str, interval_seconds: int, start_time: str, end_time: str):
-    task_id = str(uuid.uuid4())
-    trigger = IntervalTrigger(seconds=interval_seconds, start_date=start_time, end_date=end_time)
-    job = scheduler.add_job(my_job, trigger, args=[task_id], id=task_id, name=task_name)
-    tasks_info = {"task_id": task_id, "task_name": task_name, "interval_seconds": interval_seconds, "start_time": start_time}
-    redis.hset("tasks", f"{task_id}", json.dumps(tasks_info))
+    task_token = str(uuid.uuid4())
+    capture_path = 'rtsp://192.168.130.182:554'
 
-    return {"message": f"Task-{task_id} added successfully"}
+    trigger = IntervalTrigger(seconds=interval_seconds, start_date=start_time, end_date=end_time)
+    scheduler.add_job(SnapAnalysis, trigger, args=[task_token, capture_path, detector_path],
+                      id=task_token, name=task_name, executor='process')
+    tasks_info = {"task_id": task_token, "task_name": task_name, "interval_seconds": interval_seconds,
+                  "start_time": start_time}
+    redis.hset("tasks", f"{task_token}", json.dumps(tasks_info))
+
+    return {"message": f"Task-{task_token} added successfully"}
 
 
 @app.delete("/delete_task/{task_id}")

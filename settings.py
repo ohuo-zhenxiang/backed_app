@@ -5,8 +5,8 @@ FIRST_SUPERUSER: str = "admin"
 FIRST_SUPERUSER_PASSWORD: str = "admin"
 
 UPLOAD_DIR = "./FaceImageData"
-
 TASK_RECORD_DIR = "./TaskRecord"
+LOGGING_DIR = "./Log"
 
 # redis config
 REDIS_CONFIG = {"redis_host": "127.0.0.1",
