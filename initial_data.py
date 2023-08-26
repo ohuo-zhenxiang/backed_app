@@ -3,7 +3,7 @@ from typing import List
 
 from db.init_db import init_db
 from db.session import SessionLocal
-from settings import UPLOAD_DIR, TASK_RECORD_DIR, LOGGING_DIR
+from settings import UPLOAD_DIR, TASK_RECORD_DIR, LOGGING_DIR, MODEL_DIR, FEATURE_LIB
 
 
 def init() -> None:
@@ -11,7 +11,9 @@ def init() -> None:
     init_db(db)
 
 
-def main() -> None:
+def run_init() -> None:
+    dir_list = [UPLOAD_DIR, TASK_RECORD_DIR, LOGGING_DIR, MODEL_DIR, FEATURE_LIB]
+    add_dir(dir_list)
     init()
 
 
@@ -22,8 +24,5 @@ def add_dir(dir_name: List[str]) -> None:
 
 
 if __name__ == "__main__":
-    upload_dir = UPLOAD_DIR
-    dir_list = [UPLOAD_DIR, TASK_RECORD_DIR, LOGGING_DIR]
-    add_dir(dir_list)
     # 初始化数据库
-    main()
+    run_init()

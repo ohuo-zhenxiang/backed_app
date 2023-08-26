@@ -1,11 +1,14 @@
 import onnxruntime as ort
 import cv2
 import time
-from . import FaceAlign
+import os
+
+from api.face_core import FaceAlign
+from settings import MODEL_DIR
 
 
 class ArcFaceOrt:
-    def __init__(self, model_path="./model/w600k_r50.onnx", gpu=False):
+    def __init__(self, model_path=os.path.join(MODEL_DIR, 'w600k_r50.onnx'), gpu=False):
         self.model_path = model_path
         # self.providers = ['CUDAExecutionProvider'] if gpu else ['CPUExecutionProvider']
         self.providers = ['CPUExecutionProvider']
@@ -66,4 +69,4 @@ def main_run():
 
 if __name__ == "__main__":
     # cProfile.run("main_run()")
-    main_run()
+    a = ArcFaceOrt()

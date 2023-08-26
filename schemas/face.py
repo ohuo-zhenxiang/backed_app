@@ -8,7 +8,7 @@ class FaceBase(BaseModel):
     phone: Optional[str] = None
     gender: Optional[str] = None
     face_image_path: Optional[str] = None
-    face_features: Optional[bytes] = None
+
 
 
 class FaceSelect(FaceBase):
@@ -20,11 +20,12 @@ class FaceSelect(FaceBase):
 
 
 class FaceCreate(FaceBase):
+    face_features: Optional[bytes] = None
     pass
 
 
 class FaceUpdate(FaceBase):
-    pass
+    face_features: Optional[bytes] = None
 
 
 class FaceInDBBase(FaceBase):

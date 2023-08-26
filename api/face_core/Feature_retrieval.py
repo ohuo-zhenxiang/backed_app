@@ -1,8 +1,11 @@
 import pickle
-
+import os
 import cv2
 from annoy import AnnoyIndex
-from ArcFace_extract import ArcFaceOrt
+
+from api.face_core.ArcFace_extract import ArcFaceOrt
+from settings import FEATURE_LIB
+from pathlib import Path
 
 
 class AnnoyTree:
@@ -10,23 +13,23 @@ class AnnoyTree:
 
         self.index_tree = AnnoyIndex(512, metric='dot')
         self.names_list = []
-        self.fids_list = []
+        self.ids_list = []
 
-    def create_tree(self, vector_list: list, save_filename: str, task_end_time: float):
-        for i, data in enumerate(vector_list):
-            fid, name, feature = data["face_id"], data["face_name"], data["face_features"]
+    def create_tree(self, vector_list: list, save_filename: str):
+        for i, (fid, name, feature) in enumerate(vector_list):
+            feature = pickle.loads(feature)
             if len(feature) == 512:
                 self.index_tree.add_item(i, feature)
+                self.ids_list.append(fid)
                 self.names_list.append(name)
-                self.fids_list.append(fid)
             else:
                 return False, fid, name
 
         self.index_tree.build(512, n_jobs=-1)
 
-        self.index_tree.save(f"./feature_lib/{save_filename}.ann")
-        with open(f"./feature_lib/{save_filename}.pickle", "wb") as f:
-            pickle.dump((self.fids_list, self.names_list, task_end_time), f)
+        self.index_tree.save(os.path.join(FEATURE_LIB, f"{save_filename}.ann"))
+        with open(os.path.join(FEATURE_LIB, f"{save_filename}.pickle"), "wb") as f:
+            pickle.dump((self.ids_list, self.names_list), f)
 
         return True, None, None
 
@@ -36,11 +39,11 @@ class Retrieval:
 
     def __init__(self, task_id):
         # s = time.time()
-        with open(f"./feature_lib/{task_id}.pickle", "rb") as f:
-            self.fids, self.names, _ = pickle.load(f)
+        with open(os.path.join(FEATURE_LIB, f"{task_id}.pickle"), "rb") as f:
+            self.fids, self.names = pickle.load(f)
 
         self.index = AnnoyIndex(512, metric='dot')
-        self.index.load(f"./feature_lib/{task_id}.ann")
+        self.index.load(os.path.join(FEATURE_LIB, f"{task_id}.ann"))
 
         # end = round(time.time() - s, 2)
         # logger.success(f"Retrieval init..., take times: {end}s")

@@ -11,4 +11,5 @@ if __name__ == "__main__":
         result = connection.execute(query)
         version = result.scalar()
 
+    print('--------------------------------')
     print(f"PostgreSQL version: {version}")

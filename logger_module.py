@@ -20,6 +20,9 @@ class Loggings:
     def info(self, msg):
         return logger.info(msg)
 
+    def success(self, msg):
+        return logger.success(msg)
+
     def debug(self, msg):
         return logger.debug(msg)
 

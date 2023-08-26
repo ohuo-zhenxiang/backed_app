@@ -18,7 +18,7 @@ class Task(Base):
     interval_seconds = Column(Integer, nullable=False)
     status = Column(String(255), default='Waiting', index=True)
     capture_path = Column(String(255), nullable=False)
-    created_time = Column(DateTime, default=datetime.now)
+    created_time = Column(DateTime, default=datetime.now().replace(microsecond=0))
 
 
 class Record(Base):
@@ -32,5 +32,6 @@ class Record(Base):
     completed_time = Column(DateTime, nullable=False)
     face_count = Column(Integer, nullable=False)
     record_info = Column(JSON, nullable=True)
+    record_image_path = Column(String(255), nullable=True)
 
     task_token = Column(String(255), nullable=False, index=True)

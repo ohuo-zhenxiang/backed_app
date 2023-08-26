@@ -21,6 +21,7 @@ app.add_middleware(CORSMiddleware,
                    allow_headers=["*"])
 
 app.mount("/FaceImageData", StaticFiles(directory="FaceImageData"), name="FaceImageData")
+app.mount("/TaskRecord", StaticFiles(directory="TaskRecord"), name="TaskRecord")
 
 add_pagination(app)
 app.include_router(api_router, prefix='/api')
@@ -40,9 +41,11 @@ def register_init(app: FastAPI) -> None:
 
 register_init(app)
 
+
 if __name__ == "__main__":
-    # import multiprocessing
-    #
-    # multiprocessing.freeze_support()
+    import multiprocessing
+
+    multiprocessing.freeze_support()
+    Logger.success("System Start!!!")
 
     uvicorn.run(app, host="0.0.0.0", port=9527)

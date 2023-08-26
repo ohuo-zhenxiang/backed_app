@@ -2,6 +2,8 @@ import time
 import cv2
 import onnxruntime as ort
 import numpy as np
+from settings import MODEL_DIR
+import os
 
 
 def distance2bbox(anchor_centers, bboxes, max_shape=None):
@@ -45,9 +47,8 @@ def distance2kps(points, distance, max_shape=None):
         preds.append(py)
     return np.stack(preds, axis=-1)
 
-
 class RetinaFace:
-    def __init__(self, model_file="./model/det_10g.onnx", input_size=(640, 640)):
+    def __init__(self, model_file=os.path.join(MODEL_DIR, "det_10g.onnx"), input_size=(640, 640)):
         self.model_file = model_file
         session_options = ort.SessionOptions()
         providers = ['CPUExecutionProvider']
