@@ -1,4 +1,5 @@
 import os
+import shutil
 from fastapi import APIRouter, Depends, HTTPException, status, Form
 from fastapi.responses import JSONResponse
 from sqlalchemy import desc
@@ -13,7 +14,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from fastapi_pagination.ext.sqlalchemy import paginate
 from fastapi_pagination import Page
 from api.face_core.MainTask import SnapAnalysis
-from settings import TASK_RECORD_DIR
+from settings import TASK_RECORD_DIR, FEATURE_LIB
 from db.session import SessionLocal
 from api.face_core.Feature_retrieval import AnnoyTree
 
@@ -44,9 +45,9 @@ def get_faces_feature_for_group(group_id: int):
     return id_name_features
 
 
-@router.post("/create_task")
+@router.post("/add_task")
 def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
-             start_time: str = Form(...), end_time: str = Form(...),
+             start_time: int = Form(...), end_time: int = Form(...),
              capture_path: str = Form(...), associated_group_id: int = Form(...),
              db: Session = Depends(deps.get_db)):
     """
@@ -54,6 +55,8 @@ def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
     """
     task_token = str(uuid.uuid4())
     capture_path = capture_path.replace("\\", "/")
+    start_time = datetime.fromtimestamp(start_time/1000).strftime("%Y-%m-%d %H:%M:%S")
+    end_time = datetime.fromtimestamp(end_time/1000).strftime("%Y-%m-%d %H:%M:%S")
 
     id_name_features = get_faces_feature_for_group(associated_group_id)
     ann_tree = AnnoyTree()
@@ -71,7 +74,20 @@ def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
             id=task_token, name=task_name, executor="process",
             # jobstore='redis'
         )
-
+        print(start_time, end_time)
         return JSONResponse(status_code=200, content={"task_token": task_token, "detail": 'Job created'})
     else:
         return JSONResponse(content={"error_message": f"id-{b}| name-{c}: size is wrong"}, status_code=400)
+
+
+@router.delete("/delete_task/{task_token}")
+def delete_task(task_token: str, db: Session = Depends(deps.get_db)):
+    """
+    删除任务
+    """
+    crud.crud_task.delete_task(db, task_token)
+    shutil.rmtree(os.path.join(TASK_RECORD_DIR, task_token))
+    os.remove(os.path.join(FEATURE_LIB, f"{task_token}.ann"))
+    os.remove(os.path.join(FEATURE_LIB, f"{task_token}.pickle"))
+
+    return JSONResponse(status_code=200, content={"detail": 'Task deleted'})

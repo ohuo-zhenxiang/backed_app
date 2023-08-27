@@ -1,7 +1,7 @@
 from typing import Optional, List, Any
 from sqlalchemy.orm import Session
 from crud.crud_base import CRUDBase
-from models import Task
+from models import Task, Record
 from schemas import TaskCreate, TaskUpdate
 
 
@@ -15,7 +15,11 @@ class CRUDTask(CRUDBase[Task, TaskCreate, TaskUpdate]):
         db.refresh(db_obj)
         return db_obj
 
-
+    def delete_task(self, db: Session, task_token: str):
+        db.query(Task).filter(Task.task_token == task_token).delete()
+        db.query(Record).filter(Record.task_token == task_token).delete()
+        db.commit()
+        return
 
 
 crud_task = CRUDTask(Task)

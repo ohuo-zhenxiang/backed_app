@@ -46,6 +46,13 @@ async def get_groups(db: Session = Depends(deps.get_db)) -> Any:
     return result
 
 
+@router.get("/get_group_ids")
+async def get_group_ids(db: Session = Depends(deps.get_db)):
+    result = db.query(models.Group.id, models.Group.name).all()
+    result = [{"value": i[0], "label": i[1]} for i in result]
+    return result
+
+
 @router.post("/create_group")
 async def create_group(post_group: schemas.GroupCreate, db: Session = Depends(deps.get_db)):
     """
