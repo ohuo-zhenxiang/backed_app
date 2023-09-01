@@ -17,6 +17,7 @@ class Task(Base):
     end_time = Column(DateTime, nullable=False)
     interval_seconds = Column(Integer, nullable=False)
     status = Column(String(255), default='Waiting', index=True)
+    associated_group_id = Column(Integer, nullable=False)
     capture_path = Column(String(255), nullable=False)
     created_time = Column(DateTime, default=datetime.now().replace(microsecond=0))
 

@@ -21,6 +21,7 @@ class Face(Base):
     gender = Column(String(50), nullable=True)
     face_image_path = Column(String(255), nullable=False)
     face_features = Column(LargeBinary, nullable=False)
+    source = Column(String(255), nullable=False)
     created_time = Column(DateTime, default=datetime.now().replace(microsecond=0))
 
     group = relationship("Group", secondary=face_group_association, back_populates="members")

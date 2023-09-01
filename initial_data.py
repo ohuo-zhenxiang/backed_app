@@ -26,3 +26,4 @@ def add_dir(dir_name: List[str]) -> None:
 if __name__ == "__main__":
     # 初始化数据库
     run_init()
+    print('----初始化数据库完成----')

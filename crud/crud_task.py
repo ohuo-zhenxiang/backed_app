@@ -7,9 +7,10 @@ from schemas import TaskCreate, TaskUpdate
 
 class CRUDTask(CRUDBase[Task, TaskCreate, TaskUpdate]):
     def create_task(self, db: Session, task_name: str, interval_seconds: int, start_time: str, end_time: str,
-                    capture_path: str, task_token: str) -> Any:
+                    capture_path: str, task_token: str, status: str, associated_group_id: int) -> Any:
         db_obj = Task(name=task_name, interval_seconds=interval_seconds, start_time=start_time, end_time=end_time,
-                      capture_path=capture_path, task_token=task_token)
+                      capture_path=capture_path, task_token=task_token, status=status,
+                      associated_group_id=associated_group_id)
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)

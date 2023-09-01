@@ -11,7 +11,7 @@ from schemas.face import FaceCreate, FaceUpdate, FaceSelect
 class CRUDFace(CRUDBase[Face, FaceCreate, FaceUpdate]):
     def create_face(self, db: Session, *, obj_in: FaceCreate) -> Face:
         db_obj = Face(name=obj_in.name, phone=obj_in.phone, gender=obj_in.gender,
-                      face_image_path=obj_in.face_image_path, face_features=obj_in.face_features)
+                      face_image_path=obj_in.face_image_path, face_features=obj_in.face_features, source=obj_in.source)
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
@@ -34,12 +34,13 @@ class CRUDFace(CRUDBase[Face, FaceCreate, FaceUpdate]):
         db.commit()
         return True
 
-    def update_face_by_id(self, db: Session, *, name: str, phone: str, face_id: int) -> bool:
+    def update_face_by_id(self, db: Session, *, name: str, phone: str, face_id: int, gender: str = None) -> bool:
         if db.query(Face).filter(Face.phone == phone, Face.id != face_id).first():
             return False
         db_face = db.query(Face).filter(Face.id == face_id).first()
         db_face.name = name
         db_face.phone = phone
+        db_face.gender = gender
         db.commit()
         return True
 

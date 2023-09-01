@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Any
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -9,6 +9,8 @@ class TaskBase(BaseModel):
     start_time: datetime
     end_time: datetime
     interval_seconds: int
+    status: str
+    associated_group_id: int
     capture_path: Optional[str]
 
 
@@ -22,6 +24,7 @@ class TaskCreate(TaskBase):
 class TaskSelect(TaskBase):
     id: Optional[int] = None
     created_time: datetime
+    associated_group_name: str
 
     class Config:
         orm_mode = True

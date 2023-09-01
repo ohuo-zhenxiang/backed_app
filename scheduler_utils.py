@@ -15,7 +15,7 @@ redis_jobstore = RedisJobStore(jobs_key='scheduler:jobs', run_times_key='schedul
 
 job_defaults = {'coalesce': True, 'max_instances': 8}
 # setting scheduler
-Scheduler = BackgroundScheduler(timezone=timezone('Asia/Shanghai'),
+Scheduler = BackgroundScheduler(timezone='Asia/Shanghai',
                                 executors={'process': process_executor},
                                 # job_defaults=job_defaults
                                 )

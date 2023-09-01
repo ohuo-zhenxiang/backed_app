@@ -41,7 +41,6 @@ def register_init(app: FastAPI) -> None:
 
 register_init(app)
 
-
 if __name__ == "__main__":
     import multiprocessing
 
