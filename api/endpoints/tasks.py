@@ -1,6 +1,6 @@
 import os
 import shutil
-from fastapi import APIRouter, Depends, HTTPException, status, Form
+from fastapi import APIRouter, Depends, Form, BackgroundTasks
 from fastapi.responses import JSONResponse
 from sqlalchemy import desc
 
@@ -38,20 +38,31 @@ def get_tasks(db: Session = Depends(deps.get_db)):
     query = db.query(models.Task).order_by(desc(models.Task.id))
     query = query.join(group_alias, group_alias.id == models.Task.associated_group_id)
     query = query.add_columns(
-        models.Task.id,
-        models.Task.task_token,
-        models.Task.name,
-        models.Task.status,
-        models.Task.associated_group_id,
-        models.Task.start_time,
-        models.Task.end_time,
-        models.Task.capture_path,
-        models.Task.created_time,
-        models.Task.interval_seconds,
-        group_alias.name.label("associated_group_name"),
-
-    )
+            models.Task.id,
+            models.Task.task_token,
+            models.Task.name,
+            models.Task.status,
+            models.Task.associated_group_id,
+            models.Task.start_time,
+            models.Task.end_time,
+            models.Task.capture_path,
+            models.Task.created_time,
+            models.Task.interval_seconds,
+            group_alias.name.label("associated_group_name"),
+            )
     return paginate(query)
+
+
+@router.get("/get_task/{task_token}")
+def get_task(task_token: str, db: Session = Depends(deps.get_db)):
+    """
+    Get task by task_token.
+    :param db:
+    :param task_token:
+    :return:
+    """
+    query = db.query(models.Task).filter_by(task_token=task_token)
+    return query.first()
 
 
 def get_faces_feature_for_group(group_id: int):
@@ -118,23 +129,47 @@ def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
                           # jobstore='redis'
                           )
 
-        print(start_time, end_time)
         return JSONResponse(status_code=200, content={"task_token": task_token, "detail": 'Job created'})
     else:
         return JSONResponse(content={"error_message": f"id-{b}| name-{c}: size is wrong"}, status_code=400)
 
 
 @router.delete("/delete_task/{task_token}")
-def delete_task(task_token: str, db: Session = Depends(deps.get_db)):
+def delete_task(task_token: str, background_tasks: BackgroundTasks, db: Session = Depends(deps.get_db)):
+    """
+    删除任务
+    """
+    background_tasks.add_task(delete_task_async, task_token)
+    crud.crud_task.delete_task(db, task_token)
+    return JSONResponse(status_code=200, content={"detail": 'Task deleted'})
+
+
+def safe_remove_file(file_path):
+    max_attempts = 5
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            os.remove(file_path)
+            return True
+        except OSError:
+            attempts += 1
+            time.sleep(1)
+    return False
+
+
+async def delete_task_async(task_token: str):
     """
     删除任务
     """
     if Scheduler.get_job(task_token):
         Scheduler.remove_job(task_token)
-        time.sleep(0.5)
-    crud.crud_task.delete_task(db, task_token)
-    shutil.rmtree(os.path.join(TASK_RECORD_DIR, task_token))
-    os.remove(os.path.join(FEATURE_LIB, f"{task_token}.ann"))
-    os.remove(os.path.join(FEATURE_LIB, f"{task_token}.pickle"))
+        time.sleep(1)
 
-    return JSONResponse(status_code=200, content={"detail": 'Task deleted'})
+    shutil.rmtree(os.path.join(TASK_RECORD_DIR, task_token))
+    ann_deleted = safe_remove_file(os.path.join(FEATURE_LIB, f"{task_token}.ann"))
+    pickle_deleted = safe_remove_file(os.path.join(FEATURE_LIB, f"{task_token}.pickle"))
+
+    if ann_deleted and pickle_deleted:
+        print("Task file deleted successfully")
+    else:
+        print("Task file deleted failed")

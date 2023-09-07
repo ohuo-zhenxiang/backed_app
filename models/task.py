@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, ARRAY
 from sqlalchemy.orm import relationship
 from db.base_class import Base
 from datetime import datetime
@@ -34,5 +34,6 @@ class Record(Base):
     face_count = Column(Integer, nullable=False)
     record_info = Column(JSON, nullable=True)
     record_image_path = Column(String(255), nullable=True)
+    record_names = Column(ARRAY(String), nullable=False)
 
     task_token = Column(String(255), nullable=False, index=True)

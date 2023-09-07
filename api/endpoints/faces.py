@@ -36,6 +36,12 @@ async def get_faces(db: Session = Depends(deps.get_db)) -> Any:
     return paginate(query)
 
 
+@router.get("/get_face_by_id/{face_id}", response_model=schemas.FaceSelect)
+async def get_face_by_id(face_id: int, db: Session = Depends(deps.get_db)) -> Any:
+    face = db.query(models.Face).filter(models.Face.id == face_id).first()
+    return face
+
+
 @router.post("/add_face")
 async def create_face(file: UploadFile = File(...), name: str = Form(...), phone: str = Form(...),
                       gender: str = Form(...), db: Session = Depends(deps.get_db)) -> Any:

@@ -38,7 +38,8 @@ async def get_groups(db: Session = Depends(deps.get_db)) -> Any:
     )
     # 主查询连接 Group 表和子查询，并选择需要的列
     result = (
-        db.query(models.Group.id, models.Group.name, models.Group.description, subquery.c.member_count)
+        db.query(models.Group.id, models.Group.name, models.Group.description,
+                 func.coalesce(subquery.c.member_count, 0).label("member_count"))
         .outerjoin(subquery, models.Group.id == subquery.c.id)
         .order_by(desc(models.Group.id))
         .all()
@@ -48,8 +49,26 @@ async def get_groups(db: Session = Depends(deps.get_db)) -> Any:
 
 @router.get("/get_group_ids")
 async def get_group_ids(db: Session = Depends(deps.get_db)):
-    result = db.query(models.Group.id, models.Group.name).all()
-    result = [{"value": i[0], "label": i[1]} for i in result]
+    # 创建子查询来统计每个分组的成员人数
+    subquery = (
+        select(
+            models.Group.id,
+            func.count(models.Face.id).label("member_count")
+        )
+        .join(models.Group.members)
+        .group_by(models.Group.id)
+        .subquery()
+    )
+    # 主查询连接 Group 表和子查询，并选择需要的列
+    result = (
+        db.query(models.Group.id, models.Group.name,
+                 func.coalesce(subquery.c.member_count, 0).label("member_count"))
+        .outerjoin(subquery, models.Group.id == subquery.c.id)
+        .order_by(desc(models.Group.id))
+        .all()
+    )
+
+    result = [{"value": i[0], "label": i[1], "disabled": False if i[2] > 0 else True} for i in result]
     return result
 
 

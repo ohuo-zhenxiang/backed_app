@@ -45,6 +45,6 @@ if __name__ == "__main__":
     import multiprocessing
 
     multiprocessing.freeze_support()
-    Logger.success("System Start!!!")
+    Logger.success("Linking Start!!!")
 
     uvicorn.run(app, host="0.0.0.0", port=9527)

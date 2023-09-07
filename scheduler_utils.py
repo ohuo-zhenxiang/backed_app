@@ -5,7 +5,6 @@ from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
 from apscheduler.jobstores.redis import RedisJobStore
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.jobstores.memory import MemoryJobStore
-from pytz import timezone
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
 
 process_executor = ProcessPoolExecutor(10)
@@ -19,4 +18,5 @@ Scheduler = BackgroundScheduler(timezone='Asia/Shanghai',
                                 executors={'process': process_executor},
                                 # job_defaults=job_defaults
                                 )
+
 Scheduler.add_jobstore(redis_jobstore, 'redis')

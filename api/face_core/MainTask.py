@@ -29,7 +29,7 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str):
     R = Retrieval(task_id=task_token)
     detector = RetinaFace()
     cap = None
-    task_status, task_result, face_count, record_image_path = '', {}, 0, ''
+    task_status, task_result, face_count, record_image_path, record_names = '', {}, 0, '', []
     try:
         s = time.time()
         cap = capture_init(capture_path)
@@ -37,14 +37,14 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str):
     except Exception as e:
         Logger.error("can't init capture")
         task_status = "Capture Error"
-        return task_status, task_result, start_time, face_count, record_image_path
+        return task_status, task_result, start_time, face_count, record_image_path, record_names
     if cap is not None:
         ret, frame = cap.read()
         if not ret:
             cap.release()
             Logger.error("can't read frame")
             task_status = "Capture Error"
-            return task_status, task_result, start_time, face_count
+            return task_status, task_result, start_time, face_count, record_image_path, record_names
         else:
             img = frame.copy()
 
@@ -61,13 +61,14 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str):
                         kps = kpss[i]
 
                         face_reg_name_index, face_reg_similarity = R.run_retrieval(img, kps)
-                        if face_reg_similarity > 98:
+                        if face_reg_similarity > 105:
                             label = str(R.names[face_reg_name_index])
                             label_id = str(R.fids[face_reg_name_index])
+                            record_names.append(label)
                             # print(face, label)
                         else:
-                            label = "Unknown"
-                            label_id = "Unknown"
+                            label = "UNK"
+                            label_id = "UNK"
                         temp_dict = {
                             "box": box.tolist(),
                             "detect_score": round(float(detect_score), 3),
@@ -75,9 +76,10 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str):
                             "label": label,
                             "label_id": label_id}
                         faces_list.append(temp_dict)
-                        cv2.rectangle(img, (box[0], box[1]), (box[2], box[3]), color=(0, 255, 0), thickness=2)
-                        cv2.putText(img, f"{label}", (box[0] + 5, box[1] - 5), cv2.FONT_HERSHEY_SIMPLEX,
-                                    0.8, (0, 255, 0), 2)
+                        '''230907 不再后端画框，返原图和坐标前端绘制'''
+                        # cv2.rectangle(img, (box[0], box[1]), (box[2], box[3]), color=(0, 255, 0), thickness=2)
+                        # cv2.putText(img, f"{label}", (box[0] + 5, box[1] - 5), cv2.FONT_HERSHEY_SIMPLEX,
+                        #             0.8, (0, 255, 0), 2)
 
                 cv2.imwrite(os.path.join(save_fold, f"{start_time.strftime('%Y-%m-%d %H-%M-%S')}.jpg"), img)
                 print('????', time.time() - sss)
@@ -85,13 +87,13 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str):
                 task_result = {"faces": faces_list, "task_status": task_status,
                                "faces_count": len(faces_list)}
                 face_count = len(faces_list)
-                return task_status, task_result, start_time, face_count, record_image_path
+                return task_status, task_result, start_time, face_count, record_image_path, record_names
             except Exception as e:
                 Logger.error(e)
                 task_status = "Task Failed"
                 task_result = {"faces": [], "task_status": task_status,
                                "faces_count": 0}
-                return task_status, task_result, start_time, face_count, record_image_path
+                return task_status, task_result, start_time, face_count, record_image_path, record_names
             finally:
                 cap.release()
                 print('-------', time.time() - sss)
@@ -107,13 +109,14 @@ def SnapAnalysis(task_token: str, capture_path: str, save_fold: str):
     :param feature_path: 特征表
     :return:
     """
-    task_status, task_result, start_time, face_count, record_image_path = snap_analysis(task_token, capture_path,
+    task_status, task_result, start_time, face_count, record_image_path, record_names = snap_analysis(task_token, capture_path,
                                                                                         save_fold)
     completed_time = datetime.now().replace(microsecond=0)
     db = SessionLocal()
     try:
         db_obj = Record(start_time=start_time, face_count=face_count, record_info=json.dumps(task_result),
-                        task_token=task_token, completed_time=completed_time, record_image_path=record_image_path)
+                        task_token=task_token, completed_time=completed_time, record_image_path=record_image_path,
+                        record_names=record_names)
         db.add(db_obj)
         db.commit()
     finally:
