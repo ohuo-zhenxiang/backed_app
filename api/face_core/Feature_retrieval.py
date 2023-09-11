@@ -58,7 +58,7 @@ class Retrieval:
         query_feature = query_feature_raw.copy().tolist()[0]
         indices, distances = self.search(query_feature, k=20)
 
-        # result_names = [self.names[i] for i in indices]
+        result_names = [self.names[i] for i in indices]
 
         # print(f"result_names: {result_names[:5]}")
         # print(f"result_distances: {distances[:5]}")

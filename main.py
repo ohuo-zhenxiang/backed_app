@@ -1,5 +1,6 @@
 import atexit
-
+import time
+from settings import LOGGING_DIR
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 import uvicorn
@@ -7,11 +8,14 @@ from starlette.middleware.cors import CORSMiddleware
 from scheduler_utils import Scheduler
 
 from fastapi_pagination import add_pagination
-from logger_module import Logger
+from loguru import logger
 from pprint import pprint
 from api.router import api_router
 
-from logger_module import logger
+logger.add(f"{LOGGING_DIR}/main_server_log.log", rotation="500MB",
+           encoding="utf-8", enqueue=True, retention="30 days",
+           format="{time:YY-MM-DD HH:mm:ss} | {level} | {extra[name]} | {message}")
+logger = logger.bind(name="MainServer")
 
 app = FastAPI(title="Project_dev", openapi_url="/api/openapi.json", version="0.0.0", description="fastapi")
 
@@ -43,8 +47,9 @@ register_init(app)
 
 if __name__ == "__main__":
     import multiprocessing
-
+    from datetime import datetime
     multiprocessing.freeze_support()
-    Logger.success("Linking Start!!!")
+    t = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logger.success(f"Linking Start")
 
     uvicorn.run(app, host="0.0.0.0", port=9527)

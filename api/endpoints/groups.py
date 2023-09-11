@@ -9,12 +9,14 @@ from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, aliased
 from fastapi_pagination.ext.sqlalchemy import paginate, select
 from fastapi_pagination import Page
+from loguru import logger
 
 import schemas
 import crud
 import models
 from api import deps
 
+groups_logger = logger.bind(name="groups")
 router = APIRouter()
 
 # 这里到底要不要用分页功能捏？---->暂时就先不用了
@@ -82,11 +84,13 @@ async def create_group(post_group: schemas.GroupCreate, db: Session = Depends(de
     desc = post_group.get("description", "")
     a = crud.crud_group.get_by_name(db, name)
     if a:
+        groups_logger.warning(f"AddGroup {name} already exists")
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
                             content={"message": f"Group {name}  already exists"})
     else:
         b = crud.crud_group.create_group(db, name, desc)
         if b:
+            groups_logger.success(f"AddGroup {name}")
             return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Group {name} created"})
 
 
@@ -98,8 +102,10 @@ async def delete_group(group_id: int, db: Session = Depends(deps.get_db)):
     group = crud.crud_group.get_group_by_id(db, group_id)
     if group:
         crud.crud_group.remove_group(db, group)
+        groups_logger.success(f"DeleteGroup {group_id}")
         return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Group {group_id} deleted"})
     else:
+        groups_logger.warning(f"DeleteGroup {group_id} does not exist")
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
                             content={"message": f"Group {group_id} does not exist"})
 
@@ -113,8 +119,10 @@ async def update_group(group_id: int, db: Session = Depends(deps.get_db), group_
     group = crud.crud_group.get_group_by_id(db, group_id)
     if group:
         crud.crud_group.update_group_by_id(db, group_id=group_id, name=group_name, desc=group_description)
+        groups_logger.success(f"UpdateGroup {group_id}")
         return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Group {group_id} updated"})
     else:
+        groups_logger.warning(f"UpdateGroup {group_id} does not exist")
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
                             content={"message": f"Group {group_id} does not exist"})
 
@@ -153,6 +161,7 @@ async def update_group_members(group_id: int, member_ids: List[int], db: Session
         new_members = db.query(models.Face).filter(models.Face.id.in_(member_ids)).all()
         group.members.extend(new_members)
         db.commit()
+        groups_logger.success(f"UpdatedGroupMembers {group_id}")
         return JSONResponse(status_code=status.HTTP_200_OK,
                             content={"message": f"Group {group_id}"})
 

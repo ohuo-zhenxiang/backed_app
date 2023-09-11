@@ -1,6 +1,6 @@
 import os.path
 import json
-from settings import TASK_RECORD_DIR
+from settings import TASK_RECORD_DIR, LOGGING_DIR
 
 from .Feature_retrieval import Retrieval
 from .RetinaFace_detect import RetinaFace
@@ -14,7 +14,6 @@ from datetime import datetime
 import cv2
 import time
 import base64
-from logger_module import Logger
 
 
 @func_set_timeout(3)
@@ -23,7 +22,7 @@ def capture_init(path):
     return capture
 
 
-def snap_analysis(task_token: str, capture_path: str, save_fold: str):
+def snap_analysis(task_token: str, capture_path: str, save_fold: str, _logger):
     start_time = datetime.now().replace(microsecond=0)
     sss = time.time()
     R = Retrieval(task_id=task_token)
@@ -33,16 +32,16 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str):
     try:
         s = time.time()
         cap = capture_init(capture_path)
-        Logger.info(f"capture init success, take times: {round(time.time() - s, 3)}s")
+        _logger.info(f"capture init success, take times: {round(time.time() - s, 3)}s")
     except Exception as e:
-        Logger.error("can't init capture")
+        _logger.error("can't init capture")
         task_status = "Capture Error"
         return task_status, task_result, start_time, face_count, record_image_path, record_names
     if cap is not None:
         ret, frame = cap.read()
         if not ret:
             cap.release()
-            Logger.error("can't read frame")
+            _logger.error("can't read frame")
             task_status = "Capture Error"
             return task_status, task_result, start_time, face_count, record_image_path, record_names
         else:
@@ -82,20 +81,20 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str):
                         #             0.8, (0, 255, 0), 2)
 
                 cv2.imwrite(os.path.join(save_fold, f"{start_time.strftime('%Y-%m-%d %H-%M-%S')}.jpg"), img)
-                print('????', time.time() - sss)
                 task_status = "Task Completed"
                 task_result = {"faces": faces_list, "task_status": task_status,
                                "faces_count": len(faces_list)}
                 face_count = len(faces_list)
                 return task_status, task_result, start_time, face_count, record_image_path, record_names
             except Exception as e:
-                Logger.error(e)
+                _logger.error(e)
                 task_status = "Task Failed"
                 task_result = {"faces": [], "task_status": task_status,
                                "faces_count": 0}
                 return task_status, task_result, start_time, face_count, record_image_path, record_names
             finally:
                 cap.release()
+                _logger.complete()
                 print('-------', time.time() - sss)
 
 
@@ -109,8 +108,16 @@ def SnapAnalysis(task_token: str, capture_path: str, save_fold: str):
     :param feature_path: 特征表
     :return:
     """
-    task_status, task_result, start_time, face_count, record_image_path, record_names = snap_analysis(task_token, capture_path,
-                                                                                        save_fold)
+    from loguru import logger
+    logger.remove()
+    task_logger = logger.bind(task_name=f"task{task_token}")
+    task_logger.add(f"{LOGGING_DIR}/TASK_{task_token}.log", rotation="200 MB", retention="30 days", encoding="utf-8",
+                    enqueue=True)
+
+    task_status, task_result, start_time, face_count, record_image_path, record_names = snap_analysis(task_token,
+                                                                                                      capture_path,
+                                                                                                      save_fold,
+                                                                                                      task_logger)
     completed_time = datetime.now().replace(microsecond=0)
     db = SessionLocal()
     try:

@@ -20,11 +20,12 @@ from db.session import SessionLocal
 from api.face_core.Feature_retrieval import AnnoyTree
 
 from datetime import datetime, timedelta
+from loguru import logger
 import time
 import uuid
-import json
 
 router = APIRouter()
+tasks_logger = logger.bind(name="Tasks")
 
 
 @router.get("/get_tasks", response_model=Page[schemas.TaskSelect])
@@ -38,18 +39,19 @@ def get_tasks(db: Session = Depends(deps.get_db)):
     query = db.query(models.Task).order_by(desc(models.Task.id))
     query = query.join(group_alias, group_alias.id == models.Task.associated_group_id)
     query = query.add_columns(
-            models.Task.id,
-            models.Task.task_token,
-            models.Task.name,
-            models.Task.status,
-            models.Task.associated_group_id,
-            models.Task.start_time,
-            models.Task.end_time,
-            models.Task.capture_path,
-            models.Task.created_time,
-            models.Task.interval_seconds,
-            group_alias.name.label("associated_group_name"),
-            )
+        models.Task.id,
+        models.Task.task_token,
+        models.Task.name,
+        models.Task.status,
+        models.Task.associated_group_id,
+        models.Task.start_time,
+        models.Task.end_time,
+        models.Task.capture_path,
+        models.Task.created_time,
+        models.Task.interval_seconds,
+        group_alias.name.label("associated_group_name"),
+    )
+    tasks_logger.success("GetAllTasks successfully.")
     return paginate(query)
 
 
@@ -62,6 +64,7 @@ def get_task(task_token: str, db: Session = Depends(deps.get_db)):
     :return:
     """
     query = db.query(models.Task).filter_by(task_token=task_token)
+    tasks_logger.success(f"GetTaskByTaskToken successfully. task_token:{task_token}")
     return query.first()
 
 
@@ -92,6 +95,7 @@ def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
     ann_tree = AnnoyTree()
     a, b, c = ann_tree.create_tree(vector_list=id_name_features, save_filename=task_token)
     if a:
+
         # 创建定时间隔任务
         save_fold = os.path.join(TASK_RECORD_DIR, task_token)
         os.makedirs(save_fold)
@@ -116,6 +120,7 @@ def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
                               # jobstore='redis'
                               )
 
+        # 正餐
         job_create = Scheduler.add_job(
             SnapAnalysis, trigger,
             args=[task_token, capture_path, save_fold],
@@ -129,8 +134,10 @@ def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
                           # jobstore='redis'
                           )
 
+        tasks_logger.success(f"Task {task_token} created")
         return JSONResponse(status_code=200, content={"task_token": task_token, "detail": 'Job created'})
     else:
+        tasks_logger.warning(f"id-{b}| name-{c}: size is wrong")
         return JSONResponse(content={"error_message": f"id-{b}| name-{c}: size is wrong"}, status_code=400)
 
 
@@ -141,6 +148,7 @@ def delete_task(task_token: str, background_tasks: BackgroundTasks, db: Session 
     """
     background_tasks.add_task(delete_task_async, task_token)
     crud.crud_task.delete_task(db, task_token)
+    tasks_logger.success(f"DeletedTask {task_token}")
     return JSONResponse(status_code=200, content={"detail": 'Task deleted'})
 
 
@@ -170,6 +178,6 @@ async def delete_task_async(task_token: str):
     pickle_deleted = safe_remove_file(os.path.join(FEATURE_LIB, f"{task_token}.pickle"))
 
     if ann_deleted and pickle_deleted:
-        print("Task file deleted successfully")
+        tasks_logger.success(f"Task file deleted successfully")
     else:
-        print("Task file deleted failed")
+        tasks_logger.error(f"Task file delete failed")

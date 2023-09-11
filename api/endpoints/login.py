@@ -10,6 +10,9 @@ import schemas, models, crud
 from core import security
 from api import deps
 from settings import ACCESS_TOKEN_EXPIRE_MINUTES
+from loguru import logger
+
+login_logger = logger.bind(name="Login")
 
 router = APIRouter()
 
@@ -29,6 +32,8 @@ def login_access_token(db: Session = Depends(deps.get_db), form_data: OAuth2Pass
         return JSONResponse(status_code=401, content={"detail": "Inactive user"})
     # Create a token with the user's id and expiration time
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    login_logger.success(f"{form_data.username} login success")
     return {"access_token": security.create_access_token(user.id, expires_delta=access_token_expires),
             "token_type": "bearer"}
 
