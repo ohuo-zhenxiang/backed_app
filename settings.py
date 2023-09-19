@@ -14,9 +14,9 @@ SQLALCHEMY_DATABASE_URI: str = 'postgresql://postgres:postgres@localhost:5432/fa
 FIRST_SUPERUSER: str = "admin"
 FIRST_SUPERUSER_PASSWORD: str = "admin"
 
-
 # redis config
 REDIS_CONFIG = {"redis_host": "127.0.0.1",
                 "redis_port": 6379,
                 "redis_password": "redis",
-                "redis_db": 6}
+                "redis_db": 4}
+REDIS_URL = "redis://:redis@127.0.0.1:6379/4"

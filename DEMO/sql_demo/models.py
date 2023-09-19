@@ -6,7 +6,7 @@ schemas.py ---- Pydantic模型文件
 from sqlalchemy import Column, Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
-from sql_demo.database import Base
+from DEMO.sql_demo.database import Base
 
 
 class User(Base):

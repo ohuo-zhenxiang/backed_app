@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
-from sql_demo import database, schemas, crud
+from DEMO.sql_demo import database, schemas, crud
 
 app = FastAPI()
 

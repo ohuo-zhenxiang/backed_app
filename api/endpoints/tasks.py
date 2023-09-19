@@ -2,7 +2,7 @@ import os
 import shutil
 from fastapi import APIRouter, Depends, Form, BackgroundTasks
 from fastapi.responses import JSONResponse
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 import schemas
 import crud
@@ -37,7 +37,7 @@ def get_tasks(db: Session = Depends(deps.get_db)):
     """
     group_alias = aliased(models.Group)
     query = db.query(models.Task).order_by(desc(models.Task.id))
-    query = query.join(group_alias, group_alias.id == models.Task.associated_group_id)
+    query = query.outerjoin(group_alias, group_alias.id == models.Task.associated_group_id)
     query = query.add_columns(
         models.Task.id,
         models.Task.task_token,
@@ -49,7 +49,7 @@ def get_tasks(db: Session = Depends(deps.get_db)):
         models.Task.capture_path,
         models.Task.created_time,
         models.Task.interval_seconds,
-        group_alias.name.label("associated_group_name"),
+        func.coalesce(group_alias.name, "None").label("associated_group_name"),
     )
     tasks_logger.success("GetAllTasks successfully.")
     return paginate(query)

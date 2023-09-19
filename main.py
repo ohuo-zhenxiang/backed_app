@@ -17,7 +17,8 @@ logger.add(f"{LOGGING_DIR}/main_server_log.log", rotation="500MB",
            format="{time:YY-MM-DD HH:mm:ss} | {level} | {extra[name]} | {message}")
 logger = logger.bind(name="MainServer")
 
-app = FastAPI(title="Project_dev", openapi_url="/api/openapi.json", version="0.0.0", description="fastapi")
+app = FastAPI(title="人脸服务管理系统", openapi_url="/api/openapi.json", version="v0.0.0",
+              description="用于人脸服务的后台管理系统，支持多进程定时后台任务处理、实时消息推送")
 
 app.add_middleware(CORSMiddleware,
                    allow_origins=["*"],
@@ -48,6 +49,7 @@ register_init(app)
 if __name__ == "__main__":
     import multiprocessing
     from datetime import datetime
+
     multiprocessing.freeze_support()
     t = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logger.success(f"Linking Start")

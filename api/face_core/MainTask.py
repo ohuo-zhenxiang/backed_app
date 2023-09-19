@@ -13,7 +13,7 @@ from pprint import pprint
 from datetime import datetime
 import cv2
 import time
-import base64
+from redis_module import RedisModule
 
 
 @func_set_timeout(3)
@@ -85,12 +85,14 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str, _logger):
                 task_result = {"faces": faces_list, "task_status": task_status,
                                "faces_count": len(faces_list)}
                 face_count = len(faces_list)
+                _logger.success(f"Task Completed; {face_count} faces detected | take times: {(time.time() - sss):.2f}s")
                 return task_status, task_result, start_time, face_count, record_image_path, record_names
             except Exception as e:
                 _logger.error(e)
                 task_status = "Task Failed"
                 task_result = {"faces": [], "task_status": task_status,
                                "faces_count": 0}
+                _logger.error(f"Task Failed | error: {e}")
                 return task_status, task_result, start_time, face_count, record_image_path, record_names
             finally:
                 cap.release()
@@ -126,6 +128,18 @@ def SnapAnalysis(task_token: str, capture_path: str, save_fold: str):
                         record_names=record_names)
         db.add(db_obj)
         db.commit()
+        # db.refresh(db_obj)
+
+        # redis publish
+        with RedisModule() as R:
+            R.publish(f"{task_token}",
+                      json.dumps({
+                          "status": task_status, "record_info": task_result,
+                          "start_time": start_time.strftime('%Y-%m-%d %H-%M-%S'),
+                          "completed_time": completed_time.strftime('%Y-%m-%d %H-%M-%S'),
+                          "face_count": face_count,
+                          "record_image_path": record_image_path, "record_names": record_names
+                      }))
     finally:
         db.close()
 

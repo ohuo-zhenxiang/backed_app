@@ -28,7 +28,7 @@ def my_job(task_id):
     time.sleep(2.5)
 
 
-detector_path = '../Engines/det_10g.onnx'
+detector_path = '../../Engines/det_10g.onnx'
 
 
 @app.post("/add_task")
