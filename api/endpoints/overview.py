@@ -21,15 +21,43 @@ router = APIRouter()
 overview_logger = logger.bind(name="overview")
 
 
-@router.get("/get_cardData")
-async def get_cardData(db: Session = Depends(deps.get_db)):
-    faceWarehouse, faceGroup, task, equipment = {}, {}, {}, {}
+@router.get("/get_isReloading")
+async def get_isReload(db: Session = Depends(deps.get_db)):
+    """
+    :param db:
+    :return:
+    """
+    task_worker = db.query(models.Task).filter(models.Task.status != "Finished").count()
+    if task_worker > 0:
+        return JSONResponse(status_code=200, content={"isReloading": True})
+    else:
+        return JSONResponse(status_code=200, content={"isReloading": False})
 
+
+@router.get("/get_faceWarehouse")
+async def get_faceWarehouse(db: Session = Depends(deps.get_db)):
+    """
+    获取人脸仓库card数据
+    :param db:
+    :return:
+    """
+    faceWarehouse = {}
     faceWarehouse["total"] = db.query(models.Face).count()
     faceWarehouse["uploadNum"] = db.query(func.count(models.Face.id)).filter(models.Face.source == "Upload").scalar()
     faceWarehouse["snapshotNum"] = db.query(func.count(models.Face.id)).filter(
         models.Face.source == "Snapshot").scalar()
 
+    return JSONResponse(status_code=200, content=faceWarehouse)
+
+
+@router.get("/get_faceGroup")
+async def get_faceGroup(db: Session = Depends(deps.get_db)):
+    """
+    获取人脸分组card数据
+    :param db:
+    :return:
+    """
+    faceGroup = {}
     faceGroup["total"] = db.query(models.Group).count()
     faceGroup["used"] = (
         db.query(func.count(models.Group.id))
@@ -37,24 +65,36 @@ async def get_cardData(db: Session = Depends(deps.get_db)):
         .group_by(models.Group.id)
         .count()
     )
+    return JSONResponse(status_code=200, content=faceGroup)
 
+
+@router.get("/get_taskList")
+async def get_taskList(db: Session = Depends(deps.get_db)):
+    """
+    获取任务列表card数据
+    :param db:
+    :return:
+    """
+    task = {}
     task["total"] = db.query(models.Task).count()
     task["running"] = db.query(func.count(models.Task.id)).filter(models.Task.status == "Running").scalar()
     task['finished'] = db.query(func.count(models.Task.id)).filter(models.Task.status == "Finished").scalar()
     task["waiting"] = db.query(func.count(models.Task.id)).filter(models.Task.status == "Waiting").scalar()
+    return JSONResponse(status_code=200, content=task)
 
-    equipment["total"] = 2
-    equipment["normal"] = 1
-    equipment["fault"] = 1
 
-    cardData = {
-        "faceWarehouse": faceWarehouse,
-        "faceGroup": faceGroup,
-        "task": task,
-        "equipment": equipment}
-
-    overview_logger.info("get CardData success")
-    return JSONResponse(status_code=200, content=cardData)
+@router.get("/get_equipmentList")
+async def get_equipmentList(db: Session = Depends(deps.get_db)):
+    """
+    获取设备列表card数据
+    :param db:
+    :return:
+    """
+    equipment = {}
+    equipment["total"] = db.query(models.Camera).count()
+    equipment["normal"] = db.query(func.count(models.Camera.id)).filter(models.Camera.cam_status == True).scalar()
+    equipment["fault"] = db.query(func.count(models.Camera.id)).filter(models.Camera.cam_status == False).scalar()
+    return JSONResponse(status_code=200, content=equipment)
 
 
 @router.get("/get_recordList_by_taskToken/{taskToken}", response_model=List[schemas.RecordSelect])
@@ -63,12 +103,12 @@ def get_recordList_by_taskToken(taskToken: str, db: Session = Depends(deps.get_d
     通过任务token获取任务记录列表，不带分页器的接口
     """
     records = db.query(models.Record).filter(models.Record.task_token == taskToken).order_by(
-        desc(models.Record.id)).all()
+        models.Record.id).all()
     if records:
         overview_logger.success("get recordList success")
         return records
     else:
-        overview_logger.error("get recordList failed")
+        # overview_logger.error("get recordList failed")
         return JSONResponse(status_code=404, content="Not Found")
 
 

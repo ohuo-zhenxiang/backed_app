@@ -12,11 +12,11 @@ redis_connection = redis.ConnectionPool(host='127.0.0.1', port=6379, db=7, passw
 redis_jobstore = RedisJobStore(jobs_key='scheduler:jobs', run_times_key='scheduler:run_times',
                                connection_pool=redis_connection)
 
-job_defaults = {'coalesce': True, 'max_instances': 8}
+job_defaults = {'coalesce': True, 'max_instances': 12,  'misfire_grace_time': 1000}
 # setting scheduler
 Scheduler = BackgroundScheduler(timezone='Asia/Shanghai',
                                 executors={'process': process_executor},
-                                # job_defaults=job_defaults
+                                job_defaults=job_defaults
                                 )
 
 Scheduler.add_jobstore(redis_jobstore, 'redis')

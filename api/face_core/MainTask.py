@@ -9,20 +9,18 @@ from db.session import SessionLocal
 from models import Record, Task
 
 from func_timeout import func_set_timeout
-from pprint import pprint
 from datetime import datetime
 import cv2
 import time
 from redis_module import RedisModule
 
 
-@func_set_timeout(3)
-def capture_init(path):
-    capture = cv2.VideoCapture(path)
-    return capture
-
-
 def snap_analysis(task_token: str, capture_path: str, save_fold: str, _logger):
+    @func_set_timeout(3)
+    def capture_init(path):
+        capture = cv2.VideoCapture(path)
+        return capture
+
     start_time = datetime.now().replace(microsecond=0)
     sss = time.time()
     R = Retrieval(task_id=task_token)
@@ -97,7 +95,7 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str, _logger):
             finally:
                 cap.release()
                 _logger.complete()
-                print('-------', time.time() - sss)
+                # print('-------', time.time() - sss)
 
 
 def SnapAnalysis(task_token: str, capture_path: str, save_fold: str):
@@ -151,6 +149,7 @@ def UpdateStatus(task_token: str, status: str):
     :param status: 任务状态
     :return:
     """
+    # print(f"task_token: {task_token}, status: {status}")
     db = SessionLocal()
     try:
         db.query(Task).filter(Task.task_token == task_token).update({"status": status})

@@ -9,12 +9,11 @@ from scheduler_utils import Scheduler
 
 from fastapi_pagination import add_pagination
 from loguru import logger
-from pprint import pprint
 from api.router import api_router
 
 logger.add(f"{LOGGING_DIR}/main_server_log.log", rotation="500MB",
            encoding="utf-8", enqueue=True, retention="30 days",
-           format="{time:YY-MM-DD HH:mm:ss} | {level} | {extra[name]} | {message}")
+           format="{time:YY-MM-DD HH:mm:ss} | {extra[name]} | {level} | {message}")
 logger = logger.bind(name="MainServer")
 
 app = FastAPI(title="人脸服务管理系统", openapi_url="/api/openapi.json", version="v0.0.0",

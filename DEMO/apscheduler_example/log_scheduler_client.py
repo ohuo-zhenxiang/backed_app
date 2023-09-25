@@ -1,8 +1,4 @@
 from log_scheduler import RedisChannel
-from loguru import logger
-import pickle
-from pprint import pprint
-import json
 
 while True:
     with RedisChannel() as r:

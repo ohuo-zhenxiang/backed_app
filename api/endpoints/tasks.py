@@ -114,7 +114,7 @@ def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
                                        interval_seconds=interval_seconds,
                                        start_time=start_time, end_time=end_time, capture_path=capture_path,
                                        status=status, associated_group_id=associated_group_id)
-            Scheduler.add_job(UpdateStatus, trigger=DateTrigger(run_date=start_timestamp + timedelta(seconds=2)),
+            Scheduler.add_job(UpdateStatus, trigger=DateTrigger(run_date=start_timestamp - timedelta(seconds=2)),
                               args=[task_token, "Running"], id="START" + task_token, name="START" + task_name,
                               executor="process",
                               # jobstore='redis'
