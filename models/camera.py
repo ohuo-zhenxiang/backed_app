@@ -15,4 +15,4 @@ class Camera(Base):
     cam_type = Column(String(255), nullable=False, index=True)
     cam_url = Column(String(255), nullable=False, index=True)
     cam_status = Column(Boolean, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.now().replace(microsecond=0))
+    update_time = Column(DateTime, default=datetime.now().replace(microsecond=0))

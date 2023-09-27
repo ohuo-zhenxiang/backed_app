@@ -12,7 +12,7 @@ class CameraBase(BaseModel):
 
 class CameraSelect(CameraBase):
     id: Optional[int]
-    created_at: datetime
+    update_time: datetime
 
     class Config:
         orm_mode = True

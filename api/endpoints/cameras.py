@@ -48,7 +48,7 @@ async def add_camera(post_data: formAddCamera, db: Session = Depends(deps.get_db
         if cam_type == 'rtsp':
             y, m = tools.check_rtsp_rtmp_stream(cam_url, is_rtmp=False)
         elif cam_type == 'rtmp':
-            y, m = tools.chechk_rtsp_rtmp_stream(cam_url, is_rtmp=True)
+            y, m = tools.check_rtsp_rtmp_stream(cam_url, is_rtmp=True)
             if y:
                 post_data.update({'cam_status': True})
                 cameras_logger.success(f"url:{cam_url} add success")
@@ -78,7 +78,6 @@ async def check_rtsp_or_rtmp(id: int = Form(...), cam_url: str = Form(...), cam_
                              cam_type: str = Form(...),
                              db: Session = Depends(deps.get_db)):
     is_rtmp = None
-    s = time.time()
     if cam_type == 'rtsp':
         is_rtmp = False
     elif cam_type == 'rtmp':
@@ -86,12 +85,10 @@ async def check_rtsp_or_rtmp(id: int = Form(...), cam_url: str = Form(...), cam_
 
     y, m = tools.check_rtsp_rtmp_stream(url=cam_url, is_rtmp=is_rtmp)
     if y:
-        if y != cam_status:
-            crud.crud_camera.update_camera_status(db=db, id=id, cam_status=y)
+        crud.crud_camera.update_camera_status(db=db, id=id, cam_status=y)
         return JSONResponse(status_code=200, content={'message': 'Camera is ready'})
     else:
-        if y != cam_status:
-            crud.crud_camera.update_camera_status(db, id, y)
+        crud.crud_camera.update_camera_status(db=db, id=id, cam_status=y)
         return JSONResponse(status_code=404, content={'error': 'Camera is not functioning properly'})
 
 

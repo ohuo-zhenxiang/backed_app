@@ -4,7 +4,7 @@ import shlex
 import cv2
 
 
-def check_rtsp_rtmp_stream(url, timeout=3, is_rtmp=False):
+def check_rtsp_rtmp_stream(url, timeout=5, is_rtmp=False):
     try:
         transport = 'tcp' if is_rtmp else 'udp'
         cmd = f'ffmpeg -loglevel quiet -rtsp_transport tcp -i {url} -t 1 -f null -'

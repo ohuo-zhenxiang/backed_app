@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, Type
+from datetime import datetime
 from sqlalchemy.orm import Session
 from crud.crud_base import CRUDBase
 from models import Camera
@@ -21,6 +21,7 @@ class CRUDCamera(CRUDBase[Camera, CameraCreate, CameraUpdate]):
     def update_camera_status(self, db: Session, id: int, cam_status: bool):
         db_cam = db.query(Camera).filter(Camera.id == id).first()
         db_cam.cam_status = cam_status
+        db_cam.update_time = datetime.now().replace(microsecond=0)
         db.commit()
         # print('db do?', cam_status)
         return
