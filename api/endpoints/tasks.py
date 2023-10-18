@@ -1,28 +1,28 @@
 import os
 import shutil
-from fastapi import APIRouter, Depends, Form, BackgroundTasks
-from fastapi.responses import JSONResponse
-from sqlalchemy import desc, func
-
-import schemas
-import crud
-import models
-from api import deps
-from sqlalchemy.orm import Session, joinedload, aliased
-from scheduler_utils import Scheduler
-from apscheduler.triggers.interval import IntervalTrigger
-from apscheduler.triggers.date import DateTrigger
-from fastapi_pagination.ext.sqlalchemy import paginate
-from fastapi_pagination import Page
-from api.face_core.MainTask import SnapAnalysis, UpdateStatus
-from settings import TASK_RECORD_DIR, FEATURE_LIB
-from db.session import SessionLocal
-from api.face_core.Feature_retrieval import AnnoyTree
-
-from datetime import datetime, timedelta
-from loguru import logger
 import time
 import uuid
+from datetime import datetime, timedelta
+
+from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
+from fastapi import APIRouter, Depends, Form, BackgroundTasks
+from fastapi.responses import JSONResponse
+from fastapi_pagination import Page
+from fastapi_pagination.ext.sqlalchemy import paginate
+from loguru import logger
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session, aliased
+
+import crud
+import models
+import schemas
+from api import deps
+from api.face_core.Feature_retrieval import AnnoyTree
+from api.face_core.MainTask import SnapAnalysis, UpdateStatus
+from db.session import SessionLocal
+from scheduler_utils import Scheduler
+from settings import TASK_RECORD_DIR, FEATURE_LIB
 
 router = APIRouter()
 tasks_logger = logger.bind(name="Tasks")
@@ -84,61 +84,68 @@ def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
     """
     Add a new task to the scheduler.
     """
-    task_token = str(uuid.uuid4())
-    capture_path = capture_path.replace("\\", "/")
-    start_timestamp = datetime.fromtimestamp(start_time / 1000)
-    start_time = start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
-    end_timestamp = datetime.fromtimestamp(end_time / 1000)
-    end_time = end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+    you = crud.crud_task.get_by_task_name(db, task_name=task_name)
+    if you:
+        tasks_logger.error(f"Task {task_name} already exists.")
+        return JSONResponse(status_code=409, content={"message": "Task already exists."})
+    else:
+        task_token = str(uuid.uuid4())
+        capture_path = capture_path.replace("\\", "/")
+        start_timestamp = datetime.fromtimestamp(start_time / 1000)
+        start_time = start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        end_timestamp = datetime.fromtimestamp(end_time / 1000)
+        end_time = end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
 
-    id_name_features = get_faces_feature_for_group(associated_group_id)
-    ann_tree = AnnoyTree()
-    a, b, c = ann_tree.create_tree(vector_list=id_name_features, save_filename=task_token)
-    if a:
+        id_name_features = get_faces_feature_for_group(associated_group_id)
+        ann_tree = AnnoyTree()
+        a, b, c = ann_tree.create_tree(vector_list=id_name_features, save_filename=task_token)
+        if a:
+            # 创建定时间隔任务
+            save_fold = os.path.join(TASK_RECORD_DIR, task_token)
+            os.makedirs(save_fold)
 
-        # 创建定时间隔任务
-        save_fold = os.path.join(TASK_RECORD_DIR, task_token)
-        os.makedirs(save_fold)
+            if start_timestamp < datetime.now():
+                status = "Running"
+                trigger = IntervalTrigger(seconds=interval_seconds, end_date=end_timestamp, timezone='Asia/Shanghai')
+                crud.crud_task.create_task(db, task_name=task_name, task_token=task_token,
+                                           interval_seconds=interval_seconds,
+                                           start_time=start_time, end_time=end_time, capture_path=capture_path,
+                                           status=status, associated_group_id=associated_group_id)
+            else:
+                status = "Waiting"
+                trigger = IntervalTrigger(seconds=interval_seconds, start_date=start_timestamp, end_date=end_timestamp,
+                                          timezone='Asia/Shanghai')
+                crud.crud_task.create_task(db, task_name=task_name, task_token=task_token,
+                                           interval_seconds=interval_seconds,
+                                           start_time=start_time, end_time=end_time, capture_path=capture_path,
+                                           status=status, associated_group_id=associated_group_id)
+                Scheduler.add_job(UpdateStatus, trigger=DateTrigger(run_date=start_timestamp - timedelta(seconds=2),
+                                                                    timezone='Asia/Shanghai'),
+                                  args=[task_token, "Running"], id="START" + task_token, name="START" + task_name,
+                                  executor="process",
+                                  # jobstore='redis'
+                                  )
 
-        if start_timestamp < datetime.now():
-            status = "Running"
-            trigger = IntervalTrigger(seconds=interval_seconds, end_date=end_timestamp)
-            crud.crud_task.create_task(db, task_name=task_name, task_token=task_token,
-                                       interval_seconds=interval_seconds,
-                                       start_time=start_time, end_time=end_time, capture_path=capture_path,
-                                       status=status, associated_group_id=associated_group_id)
-        else:
-            status = "Waiting"
-            trigger = IntervalTrigger(seconds=interval_seconds, start_date=start_timestamp, end_date=end_timestamp)
-            crud.crud_task.create_task(db, task_name=task_name, task_token=task_token,
-                                       interval_seconds=interval_seconds,
-                                       start_time=start_time, end_time=end_time, capture_path=capture_path,
-                                       status=status, associated_group_id=associated_group_id)
-            Scheduler.add_job(UpdateStatus, trigger=DateTrigger(run_date=start_timestamp - timedelta(seconds=2)),
-                              args=[task_token, "Running"], id="START" + task_token, name="START" + task_name,
+            # 正餐
+            job_create = Scheduler.add_job(
+                SnapAnalysis, trigger,
+                args=[task_token, capture_path, save_fold],
+                id=task_token, name=task_name, executor="process",
+                # jobstore='redis'
+            )
+
+            Scheduler.add_job(UpdateStatus,
+                              trigger=DateTrigger(run_date=end_timestamp + timedelta(seconds=2), timezone='Asia/Shanghai'),
+                              args=[task_token, "Finished"], id="END" + task_token, name="END" + task_name,
                               executor="process",
                               # jobstore='redis'
                               )
 
-        # 正餐
-        job_create = Scheduler.add_job(
-            SnapAnalysis, trigger,
-            args=[task_token, capture_path, save_fold],
-            id=task_token, name=task_name, executor="process",
-            # jobstore='redis'
-        )
-
-        Scheduler.add_job(UpdateStatus, trigger=DateTrigger(run_date=end_timestamp + timedelta(seconds=2)),
-                          args=[task_token, "Finished"], id="END" + task_token, name="END" + task_name,
-                          executor="process",
-                          # jobstore='redis'
-                          )
-
-        tasks_logger.success(f"Task {task_token} created")
-        return JSONResponse(status_code=200, content={"task_token": task_token, "detail": 'Job created'})
-    else:
-        tasks_logger.warning(f"id-{b}| name-{c}: size is wrong")
-        return JSONResponse(content={"error_message": f"id-{b}| name-{c}: size is wrong"}, status_code=400)
+            tasks_logger.success(f"Task {task_token} created")
+            return JSONResponse(status_code=200, content={"task_token": task_token, "detail": 'Job created'})
+        else:
+            tasks_logger.warning(f"id-{b}| name-{c}: size is wrong")
+            return JSONResponse(content={"error_message": f"id-{b}| name-{c}: size is wrong"}, status_code=400)
 
 
 @router.delete("/delete_task/{task_token}")

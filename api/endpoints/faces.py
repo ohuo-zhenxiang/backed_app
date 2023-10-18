@@ -167,6 +167,7 @@ async def create_snapshot(post_data: FormSnap, db: Session = Depends(deps.get_db
 class FormSnap(BaseModel):
     name: str
     phone: str
+    gender: str
     image64: str
     kps: List[list]
     box: List[int]
@@ -190,7 +191,8 @@ async def add_snapshot(post_data: FormSnap, db: Session = Depends(deps.get_db)):
             file_save_path = os.path.join('./FaceImageData', image_name)
             cv2.imwrite(os.path.join(UPLOAD_DIR, image_name), img)
 
-            face_in = schemas.FaceCreate(name=post_data.name, phone=post_data.phone, face_features=pickle.dumps(query_feature_l),
+            face_in = schemas.FaceCreate(name=post_data.name, phone=post_data.phone, gender=post_data.gender,
+                                         face_features=pickle.dumps(query_feature_l),
                                          face_image_path=file_save_path, source="Snapshot")
             crud.crud_face.create_face(db, obj_in=face_in)
             faces_logger.success(f"AddSnapshotFace | name: {post_data.name} | take_times: {round(time.time()-s, 3)}")

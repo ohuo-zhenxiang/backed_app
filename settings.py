@@ -1,5 +1,7 @@
 import os
 
+import yaml
+
 # PATH
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "FaceImageData")
@@ -9,14 +11,24 @@ MODEL_DIR = os.path.join(BASE_DIR, 'Engines')
 FEATURE_LIB = os.path.join(BASE_DIR, 'FeatureLib')
 
 ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
-SQLALCHEMY_DATABASE_URI: str = 'postgresql://postgres:postgres@localhost:5432/fastapi'
 
 FIRST_SUPERUSER: str = "admin"
 FIRST_SUPERUSER_PASSWORD: str = "admin"
 
+with open('config.yml', 'r') as f:
+    config = yaml.safe_load(f)
+
+redis_config = config['redis']
+postgresql_config = config['postgresql']
+app_config = config['app']
+
+SQLALCHEMY_DATABASE_URI: str = f"postgresql://{postgresql_config['username']}:{postgresql_config['password']}@{postgresql_config['host']}:{postgresql_config['port']}/{postgresql_config['database']}"
 # redis config
-REDIS_CONFIG = {"redis_host": "127.0.0.1",
-                "redis_port": 6379,
-                "redis_password": "redis",
-                "redis_db": 4}
-REDIS_URL = "redis://:redis@127.0.0.1:6379/4"
+REDIS_CONFIG = {"redis_host": redis_config['host'],
+                "redis_port": redis_config['port'],
+                "redis_password": redis_config['password'],
+                "redis_db": redis_config['db']}
+REDIS_URL: str = f"redis://:{redis_config['password']}@{redis_config['host']}:{redis_config['port']}/{redis_config['db']}"
+
+APP_PORT: int = app_config['port']
+APP_HOST: str = app_config['host']

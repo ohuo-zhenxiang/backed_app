@@ -47,6 +47,12 @@ async def add_camera(post_data: formAddCamera, db: Session = Depends(deps.get_db
         cam_status = post_data["cam_status"]
         if cam_type == 'rtsp':
             y, m = tools.check_rtsp_rtmp_stream(cam_url, is_rtmp=False)
+            if y:
+                post_data.update({'cam_status': True})
+                cameras_logger.success(f"url:{cam_url} add success")
+            else:
+                post_data.update({'cam_status': False})
+                cameras_logger.error(f"url:{cam_url} add filed | error:{m}")
         elif cam_type == 'rtmp':
             y, m = tools.check_rtsp_rtmp_stream(cam_url, is_rtmp=True)
             if y:

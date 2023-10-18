@@ -1,5 +1,7 @@
 from datetime import datetime
+
 from sqlalchemy.orm import Session
+
 from crud.crud_base import CRUDBase
 from models import Camera
 from schemas import CameraCreate, CameraUpdate
@@ -7,6 +9,9 @@ from schemas import CameraCreate, CameraUpdate
 
 class CRUDCamera(CRUDBase[Camera, CameraCreate, CameraUpdate]):
     def create_camera(self, db: Session, obj_in: CameraCreate) -> Camera:
+        a = datetime.now().replace(microsecond=0)
+        obj_in.update({'update_time': a, 'created_time': a})
+
         db_obj = Camera(**obj_in)
         db.add(db_obj)
         db.commit()

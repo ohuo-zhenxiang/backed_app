@@ -1,20 +1,20 @@
 import redis
-
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
+from apscheduler.executors.pool import ProcessPoolExecutor
 from apscheduler.jobstores.redis import RedisJobStore
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from apscheduler.jobstores.memory import MemoryJobStore
-from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
+from apscheduler.schedulers.background import BackgroundScheduler
+from pytz import timezone
+
+from settings import REDIS_CONFIG
 
 process_executor = ProcessPoolExecutor(10)
-redis_connection = redis.ConnectionPool(host='127.0.0.1', port=6379, db=7, password='redis')
+redis_connection = redis.ConnectionPool(host=REDIS_CONFIG["redis_host"], port=REDIS_CONFIG["redis_port"], db=7,
+                                        password=REDIS_CONFIG["redis_password"])
 redis_jobstore = RedisJobStore(jobs_key='scheduler:jobs', run_times_key='scheduler:run_times',
                                connection_pool=redis_connection)
 
-job_defaults = {'coalesce': True, 'max_instances': 12,  'misfire_grace_time': 1000}
+job_defaults = {'coalesce': True, 'max_instances': 12, 'misfire_grace_time': 1000}
 # setting scheduler
-Scheduler = BackgroundScheduler(timezone='Asia/Shanghai',
+Scheduler = BackgroundScheduler(timezone=timezone('Asia/Shanghai'),
                                 executors={'process': process_executor},
                                 job_defaults=job_defaults
                                 )

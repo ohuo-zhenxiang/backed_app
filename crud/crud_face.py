@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional, Union, List, Type
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from crud.crud_base import CRUDBase
-from models import Face
+from datetime import datetime
 from models.face import Face
 from schemas.face import FaceCreate, FaceUpdate, FaceSelect
 
@@ -11,7 +11,9 @@ from schemas.face import FaceCreate, FaceUpdate, FaceSelect
 class CRUDFace(CRUDBase[Face, FaceCreate, FaceUpdate]):
     def create_face(self, db: Session, *, obj_in: FaceCreate) -> Face:
         db_obj = Face(name=obj_in.name, phone=obj_in.phone, gender=obj_in.gender,
-                      face_image_path=obj_in.face_image_path, face_features=obj_in.face_features, source=obj_in.source)
+                      face_image_path=obj_in.face_image_path, face_features=obj_in.face_features,
+                      source=obj_in.source, created_time=datetime.now().replace(microsecond=0))
+
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)

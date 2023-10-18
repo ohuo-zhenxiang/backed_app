@@ -10,14 +10,13 @@ import uuid
 import json
 from pytz import timezone
 from api.face_core.MainTask import SnapAnalysis
-from api.face_core.RetinaFace_detect import RetinaFace
 
 app = FastAPI()
 process_executor = ProcessPoolExecutor(10)
 
 # 初始化调度器和Redis
 scheduler = BackgroundScheduler(timezone=timezone('Asia/Shanghai'), executors={'process': process_executor})
-redis = Redis(host='localhost', port=6379, db=6, password='redis')
+redis = Redis(host='localhost', port=6379, db=6, password='123456')
 
 # 关闭应用时关闭调度器
 atexit.register(lambda: scheduler.shutdown())

@@ -1,15 +1,13 @@
-import atexit
-import time
-from settings import LOGGING_DIR
+import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-import uvicorn
-from starlette.middleware.cors import CORSMiddleware
-from scheduler_utils import Scheduler
-
 from fastapi_pagination import add_pagination
 from loguru import logger
+from starlette.middleware.cors import CORSMiddleware
+
 from api.router import api_router
+from scheduler_utils import Scheduler
+from settings import LOGGING_DIR, APP_PORT, APP_HOST
 
 logger.add(f"{LOGGING_DIR}/main_server_log.log", rotation="500MB",
            encoding="utf-8", enqueue=True, retention="30 days",
@@ -48,9 +46,14 @@ register_init(app)
 if __name__ == "__main__":
     import multiprocessing
     from datetime import datetime
+    from initial_data import run_init
 
     multiprocessing.freeze_support()
+
+    run_init()
+    print('----初始化数据库完成----')
+
     t = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logger.success(f"Linking Start")
 
-    uvicorn.run(app, host="0.0.0.0", port=9527)
+    uvicorn.run(app, host=APP_HOST, port=APP_PORT)
