@@ -202,7 +202,7 @@ async def add_snapshot(post_data: FormSnap, db: Session = Depends(deps.get_db)):
             return JSONResponse(status_code=400, content={"error": e})
     else:
         faces_logger.warning(f"AddSnapshotFace | name: {post_data.name} | warning: Phone number already exists")
-        return JSONResponse(status_code=400, content={"error": "Phone number already exists"})
+        return JSONResponse(status_code=409, content={"error": "Phone number already exists"})
 
 
 @router.delete("/delete_face/{face_id}")
