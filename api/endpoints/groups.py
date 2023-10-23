@@ -1,19 +1,16 @@
-import os
-from typing import Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Form
-from fastapi.encoders import jsonable_encoder
+from typing import Any, List
 
+from fastapi import APIRouter, Depends, status, Form
 from fastapi.responses import JSONResponse
+from fastapi_pagination.ext.sqlalchemy import select
+from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy import desc, func
-from sqlalchemy.orm import Session, aliased
-from fastapi_pagination.ext.sqlalchemy import paginate, select
-from fastapi_pagination import Page
-from loguru import logger
+from sqlalchemy.orm import Session
 
-import schemas
 import crud
 import models
+import schemas
 from api import deps
 
 groups_logger = logger.bind(name="groups")
@@ -150,16 +147,30 @@ async def get_all_members(db: Session = Depends(deps.get_db)) -> Any:
     return result
 
 
+class UpdateGroup(BaseModel):
+    member_ids: List[int]
+    group_name: str
+    group_description: str
+
+
 @router.put("/update_group_members/{group_id}")
-async def update_group_members(group_id: int, member_ids: List[int], db: Session = Depends(deps.get_db)):
+async def update_group_members(group_id: int, update_data: UpdateGroup,
+                               db: Session = Depends(deps.get_db)):
     """
     Update group members
     """
+    print(update_data)
+    a = db.query(models.Group).filter(models.Group.name == update_data.group_name, models.Group.id != group_id).first()
+    if a:
+        return JSONResponse(status_code=status.HTTP_409_CONFLICT, content={"error": "Group name already exists"})
+
     group = db.query(models.Group).filter(models.Group.id == group_id).first()
     if group:
         group.members.clear()
-        new_members = db.query(models.Face).filter(models.Face.id.in_(member_ids)).all()
+        new_members = db.query(models.Face).filter(models.Face.id.in_(update_data.member_ids)).all()
         group.members.extend(new_members)
+        group.name = update_data.group_name
+        group.description = update_data.group_description
         db.commit()
         groups_logger.success(f"UpdatedGroupMembers {group_id}")
         return JSONResponse(status_code=status.HTTP_200_OK,

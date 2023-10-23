@@ -1,19 +1,15 @@
-from typing import Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Form
+import uuid
+from typing import Any, List
+
+from fastapi import APIRouter, Depends, Form
 from fastapi.responses import JSONResponse
-from fastapi_pagination import Page
-from fastapi_pagination.ext.sqlalchemy import paginate
+from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
-from loguru import logger
-import numpy as np
-import uuid
-import os
-import time
-import base64
 
-import schemas, crud, models
+import crud
+import models
+import schemas
 from api import deps, tools
 
 router = APIRouter()
@@ -35,6 +31,10 @@ class formAddCamera(BaseModel):
 
 @router.post("/add_camera")
 async def add_camera(post_data: formAddCamera, db: Session = Depends(deps.get_db)) -> Any:
+    if post_data.cam_type.lower() != post_data.cam_url.split(":")[0].lower():
+        cameras_logger.error("The URL and type of the stream are inconsistent")
+        return JSONResponse(status_code=423, content={"error": "The URL and type of the stream are inconsistent"})
+
     post_data = post_data.dict()
     cam_url = post_data["cam_url"]
     you = db.query(models.Camera).filter(models.Camera.cam_url == cam_url).first()
@@ -68,9 +68,42 @@ async def add_camera(post_data: formAddCamera, db: Session = Depends(deps.get_db
         return JSONResponse(status_code=200, content={"message": "Camera added"})
 
 
-@router.put("/update_camera/{camera_id}")
-async def update_camera():
-    pass
+class formEditCamera(BaseModel):
+    cam_name: str
+    cam_type: str
+    cam_url: str
+
+
+@router.put("/update_camera/{cam_id}")
+async def update_camera(cam_id: int, update_data: formEditCamera, db: Session = Depends(deps.get_db)) -> Any:
+    if update_data.cam_type.lower() != update_data.cam_url.split(":")[0].lower():
+        cameras_logger.error(f"UpdateCamera | The URL and type of the stream are inconsistent")
+        return JSONResponse(status_code=423, content={"error": "The URL and type of the stream are inconsistent"})
+
+    you = db.query(models.Camera).filter(models.Camera.cam_url == update_data.cam_url, models.Camera.id != cam_id).first()
+    cam_name = update_data.cam_name
+    cam_type = update_data.cam_type
+    cam_url = update_data.cam_url
+    if you:
+        cameras_logger.warning(f"UpdateCamera | {update_data.cam_url} is already exists")
+        return JSONResponse(status_code=409, content={"error": "The URL is already exists"})
+    else:
+        a = db.query(models.Camera).filter(models.Camera.id == cam_id).first()
+        if cam_type == 'rtsp':
+            y, m = tools.check_rtsp_rtmp_stream(cam_url, is_rtmp=False)
+            cam_status = True if y else False
+        elif cam_type == 'rtmp':
+            y, m = tools.check_rtsp_rtmp_stream(cam_url, is_rtmp=True)
+            cam_status = True if y else False
+        else:
+            cam_status = False
+        a.cam_name = cam_name
+        a.cam_url = cam_url
+        a.cam_type = cam_type
+        a.cam_status = cam_status
+        db.commit()
+        cameras_logger.success(f"UpdateCamera | {cam_url} is updated")
+        return JSONResponse(status_code=200, content={"message": "Camera updated"})
 
 
 @router.delete("/delete_camera/{camera_id}")

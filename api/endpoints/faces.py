@@ -1,25 +1,28 @@
-from typing import Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form, Response
+import base64
+import os
+import pickle
+import time
+import uuid
+from typing import Any, List
+
+import cv2
+import numpy as np
+from fastapi import APIRouter, Depends, File, UploadFile, Form, Response, BackgroundTasks
 from fastapi.responses import JSONResponse
+from fastapi_pagination import Page
+from fastapi_pagination.ext.sqlalchemy import paginate
+from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
-from fastapi_pagination.ext.sqlalchemy import paginate
-from fastapi_pagination import Page
-from settings import UPLOAD_DIR
-from api.face_core.RetinaFace_detect import RetinaFace
-from api.face_core.ArcFace_extract import ArcFaceOrt
-from loguru import logger
-import uuid
-import cv2
-import os
-import pickle
-import numpy as np
-import time
-import base64
 
-import schemas, crud, core, models
+import crud
+import models
+import schemas
 from api import deps
+from api.face_core.ArcFace_extract import ArcFaceOrt
+from api.face_core.RetinaFace_detect import RetinaFace
+from settings import UPLOAD_DIR
 
 router = APIRouter()
 Detector = RetinaFace()
@@ -216,16 +219,85 @@ async def delete_face(face_id: int, db: Session = Depends(deps.get_db)) -> Any:
         return JSONResponse(status_code=400, content={"error": "Face not found"})
 
 
-@router.put("/update_face/{face_id}")
-async def update_face(face_id: int, name: str = Form(...), phone: str = Form(...), gender: str = Form(None),
-                      db: Session = Depends(deps.get_db)) -> Any:
+@router.put("/update_face_without_image/{face_id}")
+async def update_face_without_image(face_id: int, name: str = Form(...),
+                                    phone: str = Form(...),
+                                    gender: str = Form(None),
+                                    db: Session = Depends(deps.get_db)) -> Any:
     # face = crud.crud_face.get(db, id=face_id)
     # print(face)
     # print(name, phone)
-    a = crud.crud_face.update_face_by_id(db, face_id=face_id, name=name, phone=phone, gender=gender)
+    a = crud.crud_face.update_face_by_id(db, face_id=face_id, name=name, phone=phone, gender=gender, source='Upload')
     if a:
-        faces_logger.success(f"UpdateFace | face_id: {face_id} | updated")
+        faces_logger.success(f"UpdateFaceWithoutImage | face_id: {face_id} | updated")
         return JSONResponse(status_code=200, content={"message": "Face updated"})
     else:
-        faces_logger.warning(f"UpdateFace | face_id: {face_id} | Phone already exists")
-        return JSONResponse(status_code=400, content={"message": "Phone already exists"})
+        faces_logger.warning(f"UpdateFaceWithoutImage | face_id: {face_id} | Phone already exists")
+        return JSONResponse(status_code=409, content={"message": "Phone already exists"})
+
+
+@router.put("/update_face_with_image/{face_id}")
+async def update_face_with_image(face_id: int, name: str = Form(...), phone: str = Form(...), gender: str = Form(...),
+                                 file: UploadFile = File(...),
+                                 background_tasks: BackgroundTasks = None,
+                                 db: Session = Depends(deps.get_db)) -> Any:
+    if db.query(models.Face).filter(models.Face.phone == phone, models.Face.id != face_id).first():
+        faces_logger.warning(f"UpdateFaceWithImage | face_id: {face_id} | Phone already exists")
+        return JSONResponse(status_code=409, content={"message": "Phone already exists"})
+
+    try:
+        image_b = await file.read()
+        np_arr = np.frombuffer(image_b, np.uint8)
+        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        bboxes, kpss = Detector.detect(img)
+        if bboxes.shape[0] == 0:
+            return JSONResponse(status_code=423, content={"error_message": "No Face Detected"})
+        else:
+            max_row_index = np.argmax(bboxes[:, 4])
+            bbox = bboxes[max_row_index]
+            box = bbox[:-1].astype(int)
+            detect_score = bbox[-1]
+            kps = kpss[max_row_index]
+
+            query_feature = Recognizer.feature_extract(img, key_points=kps)
+            query_feature_l = query_feature.tolist()[0]
+
+            b = crud.crud_face.get_face_by_id(db, id=face_id)
+            old_image_name = b.face_image_path.split('\\')[-1]
+            background_tasks.add_task(delete_old_faceImage, old_image_name)
+            image_name = str(uuid.uuid1()) + '.jpg'
+            file_save_path = os.path.join('./FaceImageData', image_name)
+            with open(os.path.join(UPLOAD_DIR, image_name), "wb+") as f:
+                f.write(image_b)
+
+            a = crud.crud_face.update_face_by_id2(db, name=name, face_id=face_id, phone=phone, gender=gender,
+                                                  source='Upload', face_features=pickle.dumps(query_feature_l),
+                                                  face_image_path=file_save_path)
+            faces_logger.success(f"UpdateFaceWithImage | face_id: {face_id} | updated")
+            return JSONResponse(status_code=200, content={"message": "Face updated"})
+
+    except Exception as e:
+        faces_logger.error(f"UpdateFaceWithImage | face_id: {face_id} | error: {e}")
+        return JSONResponse(status_code=415, content={"error_message": "Invalid Face-Image"})
+
+
+def safe_remove_file(file_path):
+    max_attempts = 5
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            os.remove(file_path)
+            return True
+        except OSError:
+            attempts += 1
+            time.sleep(1)
+    return False
+
+
+async def delete_old_faceImage(image_name):
+    a = safe_remove_file(os.path.join(UPLOAD_DIR, image_name))
+    if a:
+        faces_logger.success(f"DeleteOldFaceImage | image_name: {image_name} | deleted")
+    else:
+        faces_logger.error(f"DeleteOldFaceImage failed")
+

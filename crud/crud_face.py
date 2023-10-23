@@ -1,11 +1,13 @@
 import os
-from typing import Any, Dict, Optional, Union, List, Type
+from datetime import datetime
+from typing import Optional, Type
+
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
+
 from crud.crud_base import CRUDBase
-from datetime import datetime
 from models.face import Face
-from schemas.face import FaceCreate, FaceUpdate, FaceSelect
+from schemas.face import FaceCreate, FaceUpdate
 
 
 class CRUDFace(CRUDBase[Face, FaceCreate, FaceUpdate]):
@@ -36,15 +38,28 @@ class CRUDFace(CRUDBase[Face, FaceCreate, FaceUpdate]):
         db.commit()
         return True
 
-    def update_face_by_id(self, db: Session, *, name: str, phone: str, face_id: int, gender: str = None) -> bool:
+    def update_face_by_id(self, db: Session, *, name: str, phone: str, face_id: int, gender: str = None,
+                          source: str) -> bool:
         if db.query(Face).filter(Face.phone == phone, Face.id != face_id).first():
             return False
         db_face = db.query(Face).filter(Face.id == face_id).first()
         db_face.name = name
         db_face.phone = phone
         db_face.gender = gender
+        db_face.source = source
         db.commit()
         return True
 
+    def update_face_by_id2(self, db: Session, *, name: str, phone: str, face_id: int, gender: str, source: str,
+                           face_features: bytes, face_image_path: str) -> bool:
+        db_face = db.query(Face).filter(Face.id == face_id).first()
+        db_face.name = name
+        db_face.phone = phone
+        db_face.gender = gender
+        db_face.source = source
+        db_face.face_features = face_features
+        db_face.face_image_path = face_image_path
+        db.commit()
+        return True
 
 crud_face = CRUDFace(Face)
