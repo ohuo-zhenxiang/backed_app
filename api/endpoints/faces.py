@@ -263,7 +263,7 @@ async def update_face_with_image(face_id: int, name: str = Form(...), phone: str
             query_feature_l = query_feature.tolist()[0]
 
             b = crud.crud_face.get_face_by_id(db, id=face_id)
-            old_image_name = b.face_image_path.split('\\')[-1]
+            old_image_name = os.path.basename(b.face_image_path)
             background_tasks.add_task(delete_old_faceImage, old_image_name)
             image_name = str(uuid.uuid1()) + '.jpg'
             file_save_path = os.path.join('./FaceImageData', image_name)
