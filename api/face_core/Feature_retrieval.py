@@ -5,7 +5,7 @@ from annoy import AnnoyIndex
 
 from api.face_core.ArcFace_extract import ArcFaceOrt
 from settings import FEATURE_LIB
-from pathlib import Path
+import numpy as np
 
 
 class AnnoyTree:
@@ -19,7 +19,8 @@ class AnnoyTree:
         for i, (fid, name, feature) in enumerate(vector_list):
             feature = pickle.loads(feature)
             if len(feature) == 512:
-                self.index_tree.add_item(i, feature)
+                normalized_feature = feature / np.linalg.norm(feature)
+                self.index_tree.add_item(i, normalized_feature)
                 self.ids_list.append(fid)
                 self.names_list.append(name)
             else:

@@ -13,6 +13,7 @@ from fastapi_pagination.ext.sqlalchemy import paginate
 from loguru import logger
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, aliased
+from typing import List
 
 import crud
 import models
@@ -25,10 +26,10 @@ from scheduler_utils import Scheduler
 from settings import TASK_RECORD_DIR, FEATURE_LIB
 
 router = APIRouter()
-tasks_logger = logger.bind(name="Tasks")
+tasks_logger = logger.bind(name="FaceTasks")
 
 
-@router.get("/get_tasks", response_model=Page[schemas.TaskSelect])
+@router.get("/get_tasks", response_model=List[schemas.TaskSelect])
 def get_tasks(db: Session = Depends(deps.get_db)):
     """
     Get all tasks .
@@ -50,9 +51,9 @@ def get_tasks(db: Session = Depends(deps.get_db)):
         models.Task.created_time,
         models.Task.interval_seconds,
         func.coalesce(group_alias.name, "None").label("associated_group_name"),
-    )
+    ).all()
     tasks_logger.success("GetAllTasks successfully.")
-    return paginate(query)
+    return query
 
 
 @router.get("/get_task/{task_token}")

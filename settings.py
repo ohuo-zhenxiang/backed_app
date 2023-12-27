@@ -15,12 +15,13 @@ ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
 FIRST_SUPERUSER: str = "admin"
 FIRST_SUPERUSER_PASSWORD: str = "admin"
 
-with open('config.yml', 'r') as f:
+with open(os.path.join(BASE_DIR, 'config.yml'), 'r') as f:
     config = yaml.safe_load(f)
 
 redis_config = config['redis']
 postgresql_config = config['postgresql']
 app_config = config['app']
+REC_THRESHOLD = float(config['reg_threshold'])
 
 SQLALCHEMY_DATABASE_URI: str = f"postgresql://{postgresql_config['username']}:{postgresql_config['password']}@{postgresql_config['host']}:{postgresql_config['port']}/{postgresql_config['database']}"
 # redis config

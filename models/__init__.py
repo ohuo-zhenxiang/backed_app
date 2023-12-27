@@ -3,6 +3,7 @@
 from .user import User
 from .face import Face, face_group_association
 from .group import Group
-from .task import Task, Record
+from .face_task_record import Task, Record
 from .camera import Camera
+from .human_task_record import HumanTask, HumanRecord
 

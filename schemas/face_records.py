@@ -29,7 +29,7 @@ class RecordSelect(RecordBase):
     record_info: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class RecordRead(RecordBase):

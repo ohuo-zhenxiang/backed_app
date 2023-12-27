@@ -18,3 +18,5 @@ def create_user(*, db: Session = Depends(deps.get_db), user_in: schemas.UserCrea
         raise HTTPException(status_code=400, detail="The user with this phone already exists in the system.")
     user = crud.crud_user.create(db, obj_in=user_in)
     users_logger.success(f"User {user_in.phone} created successfully.")
+
+

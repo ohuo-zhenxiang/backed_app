@@ -1,36 +1,35 @@
-from typing import Optional, List, Any
-from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
 
 
-class TaskBase(BaseModel):
+class HumanTaskBase(BaseModel):
     task_token: str
-    name: str
+    task_name: str
     start_time: datetime
     end_time: datetime
     interval_seconds: int
     status: str
-    associated_group_id: int
     capture_path: Optional[str]
 
 
-class TaskCreate(TaskBase):
+class HumanTaskCreate(HumanTaskBase):
     """
     This is the request body for creating a task
     """
     pass
 
 
-class TaskSelect(TaskBase):
+class HumanTaskSelect(HumanTaskBase):
     id: Optional[int] = None
     created_time: datetime
-    associated_group_name: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
-class TaskUpdate(TaskBase):
+class HumanTaskUpdate(HumanTaskBase):
     """
     This is the request body for updating a task
     """

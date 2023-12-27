@@ -13,7 +13,7 @@ class GroupSelect(GroupBase):
     member_count: Optional[int]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class GroupCreate(GroupBase):

@@ -16,7 +16,7 @@ class FaceSelect(FaceBase):
     created_time: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class FaceCreate(FaceBase):
@@ -33,7 +33,7 @@ class FaceInDBBase(FaceBase):
     id: Optional[int] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class MembersInGroup(BaseModel):
@@ -41,6 +41,6 @@ class MembersInGroup(BaseModel):
     label: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Additional properties to return via API

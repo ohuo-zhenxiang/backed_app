@@ -1,5 +1,6 @@
 import uvicorn
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
 from fastapi_pagination import add_pagination
 from loguru import logger
@@ -14,8 +15,18 @@ logger.add(f"{LOGGING_DIR}/main_server_log.log", rotation="500MB",
            format="{time:YY-MM-DD HH:mm:ss} | {extra[name]} | {level} | {message}")
 logger = logger.bind(name="MainServer")
 
-app = FastAPI(title="人脸服务管理系统", openapi_url="/api/openapi.json", version="v0.0.0",
-              description="用于人脸服务的后台管理系统，支持多进程定时后台任务处理、实时消息推送")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Scheduler.start()
+    yield
+    Scheduler.shutdown()
+
+app = FastAPI(title="人脸服务管理系统",
+              openapi_url="/api/openapi.json",
+              version="v0.0.1",
+              description="用于人脸服务的后台管理系统，支持多进程定时后台任务处理、实时消息推送",
+              lifespan=lifespan)
 
 app.add_middleware(CORSMiddleware,
                    allow_origins=["*"],
@@ -29,19 +40,20 @@ add_pagination(app)
 app.include_router(api_router, prefix='/api')
 
 
-def register_init(app: FastAPI) -> None:
-    @app.on_event("startup")
-    async def init_connect():
-        # 初始化apscheduler
-        Scheduler.start()
+# def register_init(app: FastAPI) -> None:
+#     @app.on_event("startup")
+#     async def init_connect():
+#         # 初始化apscheduler
+#         Scheduler.start()
+#
+#     @app.on_event("shutdown")
+#     async def shutdown_connect():
+#         # 关闭apscheduler
+#         Scheduler.shutdown()
+#
+#
+# register_init(app)
 
-    @app.on_event("shutdown")
-    async def shutdown_connect():
-        # 关闭apscheduler
-        Scheduler.shutdown()
-
-
-register_init(app)
 
 if __name__ == "__main__":
     import multiprocessing

@@ -1,6 +1,6 @@
 import os.path
 import json
-from settings import TASK_RECORD_DIR, LOGGING_DIR
+from settings import TASK_RECORD_DIR, LOGGING_DIR, REC_THRESHOLD
 
 from .Feature_retrieval import Retrieval
 from .RetinaFace_detect import RetinaFace
@@ -58,7 +58,7 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str, _logger):
                         kps = kpss[i]
 
                         face_reg_name_index, face_reg_similarity = R.run_retrieval(img, kps)
-                        if face_reg_similarity > 105:
+                        if face_reg_similarity > REC_THRESHOLD:
                             label = str(R.names[face_reg_name_index])
                             label_id = str(R.fids[face_reg_name_index])
                             record_names.append(label)
@@ -83,7 +83,7 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str, _logger):
                 task_result = {"faces": faces_list, "task_status": task_status,
                                "faces_count": len(faces_list)}
                 face_count = len(faces_list)
-                _logger.success(f"Task Completed; {face_count} faces detected | take times: {(time.time() - sss):.2f}s")
+                _logger.success(f"Task Completed; {face_count} faces detected | take times: {(time.time() - sss):}.2fs")
                 return task_status, task_result, start_time, face_count, record_image_path, record_names
             except Exception as e:
                 _logger.error(e)
@@ -103,15 +103,13 @@ def SnapAnalysis(task_token: str, capture_path: str, save_fold: str):
     SnapAnalysis
     :param task_token: 任务token
     :param capture_path: 流地址
-    :param detector: RetinaFace的实例对象
-    :param recognizer: ArcFaceOrt的实例对象
-    :param feature_path: 特征表
+    :param save_fold: 保存路径
     :return:
     """
     from loguru import logger
     logger.remove()
     task_logger = logger.bind(task_name=f"task{task_token}")
-    task_logger.add(f"{LOGGING_DIR}/TASK_{task_token}.log", rotation="200 MB", retention="30 days", encoding="utf-8",
+    task_logger.add(f"{LOGGING_DIR}/FACE_TASK_{task_token}.log", rotation="200 MB", retention="30 days", encoding="utf-8",
                     enqueue=True)
 
     task_status, task_result, start_time, face_count, record_image_path, record_names = snap_analysis(task_token,
