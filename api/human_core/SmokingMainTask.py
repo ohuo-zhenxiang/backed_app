@@ -10,8 +10,8 @@ from db.session import SessionLocal, async_session
 from models import HumanTask, HumanRecord
 from redis_module import RedisModule
 from settings import LOGGING_DIR
-from Smoking_detect import SmokingCallingDetect
-from Human_detect import Profile
+from .Smoking_detect import SmokingCallingDetect
+from .Human_detect import Profile
 
 
 def snap_sandc_analysis_core(task_token: str, capture_path: str | int, save_fold: str, _logger):
@@ -85,6 +85,8 @@ def snap_sandc_analysis_core(task_token: str, capture_path: str | int, save_fold
                                     elif class_id == 1:
                                         person_res['person_behaviors']['calling'].append(behavior_res)
                             persons_res.append(person_res)
+
+                cv2.imwrite(os.path.join(save_fold, f"{start_time.strftime('%Y-%m-%d %H-%M-%S')}.jpg"), frame)
                 task_status, human_count = "Task Completed", len(persons_res)
                 task_result = {"humans": persons_res, "humans_count": human_count, "task_status": task_status}
                 _logger.success(f"Task Completed; {len(persons_res)} humans detected | take times: {(time.time()-sss):.3f}")
@@ -126,7 +128,7 @@ def SnapSandCAnalysis(task_token: str, capture_path: str, save_fold: str):
         db.close()
 
 
-def UpdateStatus(task_token: str, status: str):
+def SCUpdateStatus(task_token: str, status: str):
     """
     更新任务状态
     :param task_token: 任务token

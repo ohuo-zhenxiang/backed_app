@@ -53,9 +53,9 @@ def snap_human_analysis_core(task_token: str, capture_path, save_fold: str, _log
                         confidence = float(conf)
                         confidence_str = f'{confidence:.2f}'
                         temp_dict = {
-                            "box": [int(x) for x in xyxy],
-                            "human_score": confidence_str,
-                            "label_id": i,
+                            "person_box": [int(x) for x in xyxy],
+                            "person_score": confidence_str,
+                            "person_id": i,
                         }
                         humans_list.append(temp_dict)
 

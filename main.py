@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi_pagination import add_pagination
 from loguru import logger
 from starlette.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from api.router import api_router
 from scheduler_utils import Scheduler
@@ -38,6 +39,11 @@ app.mount("/TaskRecord", StaticFiles(directory="TaskRecord"), name="TaskRecord")
 
 add_pagination(app)
 app.include_router(api_router, prefix='/api')
+
+
+@app.get("/", include_in_schema=False)
+async def redict_to_docs():
+    return RedirectResponse(url="/docs")
 
 
 # def register_init(app: FastAPI) -> None:

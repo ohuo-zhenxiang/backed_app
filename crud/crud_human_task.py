@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, List
 
 from sqlalchemy.orm import Session
 
@@ -10,8 +10,9 @@ from schemas import HumanTaskCreate, HumanTaskUpdate
 
 class CRUDHumanTask(CRUDBase[HumanTask, HumanTaskCreate, HumanTaskUpdate]):
     def create_human_task(self, db: Session, task_name: str, interval_seconds: int, start_time: str, end_time: str,
-                          capture_path: str, task_token: str, status: str) -> Any:
-        db_obj = HumanTask(task_name=task_name, interval_seconds=interval_seconds, start_time=start_time,
+                          capture_path: str, task_token: str, status: str, expand_tasks: List[str]) -> Any:
+        db_obj = HumanTask(task_name=task_name, expand_tasks=expand_tasks,
+                           interval_seconds=interval_seconds, start_time=start_time,
                            end_time=end_time, capture_path=capture_path, task_token=task_token, status=status,
                            created_time=datetime.now().replace(microsecond=0))
         db.add(db_obj)

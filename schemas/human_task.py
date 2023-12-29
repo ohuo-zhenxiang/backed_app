@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel
 
@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class HumanTaskBase(BaseModel):
     task_token: str
     task_name: str
+    expand_tasks: List[str] = []
     start_time: datetime
     end_time: datetime
     interval_seconds: int

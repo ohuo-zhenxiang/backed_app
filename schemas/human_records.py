@@ -12,9 +12,9 @@ class HumanRecordBase(BaseModel):
 
 
 class HumanInfo(HumanRecordBase):
-    box: List[int]
-    detect_score: float
-    label_id: int
+    person_box: List[int]
+    person_score: float
+    person_id: int
 
 
 class HumanRecordInfo(HumanRecordBase):

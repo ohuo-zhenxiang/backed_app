@@ -7,7 +7,7 @@ import numpy as np
 import onnxruntime as ort
 import torch
 from numba import njit
-from Human_detect import Profile
+from .Human_detect import Profile
 
 from settings import MODEL_DIR
 
@@ -190,8 +190,8 @@ class SmokingCallingDetect:
                  is_gpu=False):
         self.weight_1 = weight1
         self.weight_2 = weight2
-        self.conf_thres = 0.45
-        self.iou_thres = 0.45
+        self.conf_thres = 0.5
+        self.iou_thres = 0.5
         self.device = torch.device('cuda' if torch.cuda.is_available() and is_gpu else 'cpu')
         self.providers = ['CPUExecutionProvider', 'CUDAExecutionProvider'] if is_gpu else ['CPUExecutionProvider']
 
