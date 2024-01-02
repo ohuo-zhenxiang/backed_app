@@ -235,7 +235,6 @@ class SmokingCallingDetect:
                                      conf_thres=self.conf_thres,
                                      iou_thres=self.iou_thres,
                                      classes=[0, ], )
-
         return res[0]
 
     def smoking_calling_detect(self, person_res: np.ndarray, im0: np.ndarray):
