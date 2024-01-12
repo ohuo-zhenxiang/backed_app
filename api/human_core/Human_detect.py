@@ -1,6 +1,7 @@
 import contextlib
 import os
 import time
+from typing import List
 
 import cv2
 import numpy as np
@@ -8,6 +9,8 @@ import onnxruntime as ort
 import torch
 import torchvision
 
+from .utils import preprocess, np_non_max_suppression
+from schemas.person import Person
 from settings import MODEL_DIR
 
 
@@ -257,3 +260,51 @@ class HumanDetect:
                 # print("front", det)
                 det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
                 return det
+
+
+class HumanDetect_V2:
+    def __init__(self, weight1=os.path.join(MODEL_DIR, 'yolov5x.onnx'), is_gpu=False):
+        self.weight_1 = weight1
+        self.conf_thres = 0.5
+        self.iou_thres = 0.5
+        self.device = torch.device('cuda' if torch.cuda.is_available() and is_gpu else 'cpu')
+        self.providers = ['CPUExecutionProvider', 'CUDAExecutionProvider'] if is_gpu else ['CPUExecutionProvider']
+
+        # load person onnx-model
+        self.session_1 = ort.InferenceSession(self.weight_1, providers=self.providers)
+        self.output_names_1 = [x.name for x in self.session_1.get_outputs()]
+        self.meta_1 = self.session_1.get_modelmeta().custom_metadata_map
+        if 'stride' in self.meta_1:
+            self.stride_1, self.names_1 = int(self.meta_1['stride']), eval(self.meta_1['names'])
+
+    def warmup(self):
+        im1 = np.ones((1, 3, 640, 640), dtype=np.float32)
+        for _ in range(2):
+            dz = self.session_1.run(self.output_names_1, {self.session_1.get_inputs()[0].name: im1})
+
+    def forward(self, im0: np.ndarray):
+        """preprocess"""
+        im = preprocess(im0)
+
+        """Inference"""
+        pred = self.session_1.run(self.output_names_1, {self.session_1.get_inputs()[0].name: im})
+
+        """postprocess"""
+        res = np_non_max_suppression(pred,
+                                     img1_shape=[im.shape[2:]],
+                                     img0_shape=[im0.shape],
+                                     conf_thres=self.conf_thres,
+                                     iou_thres=self.iou_thres,
+                                     classes=[0, ], )
+        return res[0]
+
+    @staticmethod
+    def record_result(res) -> List[Person]:
+        persons_res_list = []
+        for i, person in enumerate(res):
+            person_res = Person()
+            person_res.person_id = i
+            person_res.person_box = [int(x) for x in person[:4]]
+            person_res.person_score = float(person[4])
+            persons_res_list.append(person_res)
+        return persons_res_list

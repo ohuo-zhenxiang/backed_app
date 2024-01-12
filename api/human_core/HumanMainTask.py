@@ -28,7 +28,7 @@ def snap_human_analysis_core(task_token: str, capture_path, save_fold: str, _log
     try:
         s = time.time()
         cap = capture_init(capture_path)
-        _logger.info(f"capture init success, take times: {time.time() - s}.3f")
+        _logger.info(f"capture init success, take times: {(time.time() - s):.3f}")
     except Exception as e:
         _logger.error("can't init capture")
         task_status = "Capture Error"

@@ -46,6 +46,7 @@ async def redict_to_docs():
     return RedirectResponse(url="/docs")
 
 
+# 这种写法弃用了
 # def register_init(app: FastAPI) -> None:
 #     @app.on_event("startup")
 #     async def init_connect():

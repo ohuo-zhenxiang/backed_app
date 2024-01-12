@@ -19,8 +19,9 @@ import crud
 import models
 import schemas
 from api import deps
-from api.human_core.HumanMainTask import SnapHumanAnalysis, UpdateStatus
-from api.human_core.SmokingMainTask import SnapSandCAnalysis, SCUpdateStatus
+# from api.human_core.HumanMainTask import SnapHumanAnalysis, UpdateStatus
+# from api.human_core.SmokingMainTask import SnapSandCAnalysis, SCUpdateStatus
+from api.human_core.MultiMainTask import SnapMultiAnalysis, MultiUpdateStatus
 from scheduler_utils import Scheduler
 from settings import TASK_RECORD_DIR
 from enum import Enum
@@ -29,27 +30,27 @@ router = APIRouter()
 human_tasks_logger = logger.bind(name="HumanTasks")
 
 
-class task_type(Enum):
-    a = 'smoke'
-    b = 'phone'
-    c = 'pose'
-
-
-def choice_detect_task(task_extends):
-    """
-    选择执行的检测任务
-    :param task_extends: ['smoke', 'phone', 'pose']
-    :return:
-    """
-    if len(task_extends) == 0:
-        return SnapHumanAnalysis
-    elif ('smoke' in task_extends) or ('phone' in task_extends):
-        if 'pose' not in task_extends:
-            return SnapSandCAnalysis
-        else:
-            return None
-    else:
-        return None
+# class task_type(Enum):
+#     a = 'smoke'
+#     b = 'phone'
+#     c = 'pose'
+#
+#
+# def choice_detect_task(task_extends):
+#     """
+#     选择执行的检测任务
+#     :param task_extends: ['smoke', 'phone', 'pose']
+#     :return:
+#     """
+#     if len(task_extends) == 0:
+#         return SnapHumanAnalysis
+#     elif ('smoke' in task_extends) or ('phone' in task_extends):
+#         if 'pose' not in task_extends:
+#             return SnapSandCAnalysis
+#         else:
+#             return None
+#     else:
+#         return None
 
 
 @router.get("/get_human_tasks", response_model=List[schemas.HumanTaskSelect])
@@ -99,10 +100,6 @@ def add_human_task(data: AddHumanTask, db: Session = Depends(deps.get_db)):
     end_time = data.end_time
     capture_path = data.capture_path
 
-    TaskCore = choice_detect_task(task_extends)
-    if TaskCore is None:
-        return JSONResponse(status_code=422, content={"message": "Invalid task_expands"})
-
     you = crud.crud_human_task.get_HumanTask_by_TaskName(db, task_name)
     if you:
         human_tasks_logger.error(f"HumanTask: {task_name} already exists")
@@ -137,8 +134,10 @@ def add_human_task(data: AddHumanTask, db: Session = Depends(deps.get_db)):
                                                    task_token=task_token,
                                                    interval_seconds=interval_seconds, start_time=start_time,
                                                    end_time=end_time, capture_path=capture_path, status=status)
-            Scheduler.add_job(UpdateStatus, trigger=DateTrigger(run_date=start_timestamp - timedelta(seconds=2),
-                                                                timezone='Asia/Shanghai'),
+            Scheduler.add_job(MultiUpdateStatus,
+                              trigger=DateTrigger(
+                                  run_date=start_timestamp - timedelta(seconds=2),
+                                  timezone='Asia/Shanghai'),
                               args=[task_token, "Running"], id=f"START-{task_token}", name=f"START-{task_name}",
                               executor="process",
                               # jobstore='redis'
@@ -147,13 +146,13 @@ def add_human_task(data: AddHumanTask, db: Session = Depends(deps.get_db)):
         # 正餐
 
         job_create = Scheduler.add_job(
-            TaskCore, trigger,
-            args=[task_token, capture_path, save_fold],
+            SnapMultiAnalysis, trigger,
+            args=[task_token, task_extends, capture_path, save_fold],
             id=task_token, name=task_name, executor="process",
             # jobstore='redis'
         )
 
-        Scheduler.add_job(UpdateStatus,
+        Scheduler.add_job(MultiUpdateStatus,
                           trigger=DateTrigger(run_date=end_timestamp + timedelta(seconds=2), timezone='Asia/Shanghai'),
                           args=[task_token, "Finished"], id=f"END-{task_token}", name=f"END-{task_name}",
                           executor="process",

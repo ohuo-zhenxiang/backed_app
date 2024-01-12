@@ -116,7 +116,7 @@ def SnapSandCAnalysis(task_token: str, capture_path: str, save_fold: str):
     task_logger.add(f"{LOGGING_DIR}/HUMAN_TASK_{task_token}.log", rotation="200 MB", retention="30 days",
                     encoding="utf-8", enqueue=True)
 
-    task_staus, task_result, start_time, human_count, record_image_path = snap_sandc_analysis_core(task_token, capture_path, save_fold, task_logger)
+    task_status, task_result, start_time, human_count, record_image_path = snap_sandc_analysis_core(task_token, capture_path, save_fold, task_logger)
     completed_time = datetime.now().replace(microsecond=0)
     db = SessionLocal()
     try:

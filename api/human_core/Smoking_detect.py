@@ -7,9 +7,37 @@ import numpy as np
 import onnxruntime as ort
 import torch
 from numba import njit
-from .Human_detect import Profile
+from typing import List
+from schemas.person import Person, Behavior
+from pprint import pprint
 
 from settings import MODEL_DIR
+
+
+class Profile(contextlib.ContextDecorator):
+    """
+    with Profile() as p:
+        ...
+    take_times = p.dt
+    """
+
+    def __init__(self, t=0.0):
+        self.t = t
+        self.cuda = torch.cuda.is_available()
+
+    def __enter__(self):
+        self.start = self.time()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.dt = self.time() - self.start
+        self.t += self.dt  # accumulate dt
+
+    def time(self):
+        if self.cuda:
+            # GPU计算时没法算时间
+            torch.cuda.synchronize()
+        return time.time()
 
 
 def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=False, scaleFill=False, scaleup=True, stride=32):
@@ -297,6 +325,74 @@ class SmokingCallingDetect:
                     persons_res.append(person_res)
 
             return persons_res
+
+
+class SmokingCallingDetect_V2:
+    def __init__(self, weight2=os.path.join(MODEL_DIR, 'best_dynamic_simplified.onnx'), is_gpu=False):
+        self.weight2 = weight2
+        self.conf_thres = 0.5
+        self.iou_thres = 0.45
+        self.device = torch.device('cuda' if torch.cuda.is_available() and is_gpu else 'cpu')
+        self.providers = ['CPUExecutionProvider', 'CUDAExecutionProvider'] if is_gpu else ['CPUExecutionProvider']
+        self.model_name = 'smoking_calling_detect_v2'
+
+        # load smoking+calling onnx-model
+        self.session_2 = ort.InferenceSession(self.weight2, providers=self.providers)
+        self.output_names_2 = None
+        self.ip_h_2, self.ip_w_2 = self.session_2.get_inputs()[0].shape[2:]
+        self.meta_2 = self.session_2.get_modelmeta().custom_metadata_map
+        self.stride_2, self.names_2 = self.meta_2['stride'], eval(self.meta_2['names'])
+        if isinstance(self.names_2, dict):
+            self.classes_2, self.names_2 = list(self.names_2.keys()), list(self.names_2.values())
+        else:
+            self.classes_2, self.names_2 = [i for i in range(len(self.names_2))], self.names_2
+
+    def warmup(self):
+        im2 = np.random.randn(4, 3, self.ip_h_2, self.ip_w_2).astype(np.float32)
+        for _ in range(2):
+            wy = self.session_2.run(self.output_names_2, {self.session_2.get_inputs()[0].name: im2})
+        return wy[0].shape
+
+    def forward(self, person_res: np.ndarray, im0: np.ndarray) -> List[np.ndarray]:
+        """preprocess"""
+        n_inputs = get_multi_inputs(person_res[:, :5], im0, self.ip_h_2)
+        n_inputs = n_inputs.astype(np.float32)
+        n_inputs /= 255.
+
+        """Inference"""
+        sandc_pred = self.session_2.run(self.output_names_2, {self.session_2.get_inputs()[0].name: n_inputs})[0]
+
+        """postprocess"""
+        person_boxes_hw = np.column_stack((person_res[:, 3] - person_res[:, 1], person_res[:, 2] - person_res[:, 0]))
+        sandc_res = np_non_max_suppression(sandc_pred,
+                                           img1_shape=[(self.ip_h_2, self.ip_w_2)] * n_inputs.shape[0],
+                                           img0_shape=person_boxes_hw,
+                                           conf_thres=self.conf_thres,
+                                           iou_thres=self.iou_thres,
+                                           classes=[0, 1], )
+
+        return sandc_res
+
+    def record_result(self, detects_res: list, persons_res: List[Person]) -> List[Person]:
+        for person_res, detect_res in zip(persons_res, detects_res):
+            if detect_res.shape[0] > 0:
+                for behavior_res in detect_res:
+                    bbox = [int(bb) for bb in behavior_res[:4]]
+                    class_id = int(behavior_res[-1])
+
+                    behavior = Behavior()
+                    behavior.behavior_box = [eix+wai for eix, wai in zip(person_res.person_box[:2]*2, bbox)]
+                    behavior.behavior_type = self.names_2[class_id]
+                    behavior.behavior_score = float(behavior_res[4])
+
+                    if class_id == 0:
+                        person_res.person_behaviors.smoking.append(behavior)
+                    elif class_id == 1:
+                        person_res.person_behaviors.calling.append(behavior)
+        # pprint([x.model_dump() for x in persons_res])
+        return persons_res
+
+        # print(persons_res)
 
 
 if __name__ == '__main__':
