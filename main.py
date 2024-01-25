@@ -1,11 +1,12 @@
+from contextlib import asynccontextmanager
+
 import uvicorn
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi_pagination import add_pagination
 from loguru import logger
 from starlette.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
 
 from api.router import api_router
 from scheduler_utils import Scheduler
@@ -25,7 +26,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="人脸服务管理系统",
               openapi_url="/api/openapi.json",
-              version="v0.0.1",
+              version="v0.0.2",
               description="用于人脸服务的后台管理系统，支持多进程定时后台任务处理、实时消息推送",
               lifespan=lifespan)
 
@@ -46,7 +47,7 @@ async def redict_to_docs():
     return RedirectResponse(url="/docs")
 
 
-# 这种写法弃用了
+# 这种写法fastapi最新版本弃用
 # def register_init(app: FastAPI) -> None:
 #     @app.on_event("startup")
 #     async def init_connect():

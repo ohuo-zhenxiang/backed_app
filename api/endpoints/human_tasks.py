@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Form, BackgroundTasks
 from fastapi.responses import JSONResponse
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -19,64 +19,34 @@ import crud
 import models
 import schemas
 from api import deps
-# from api.human_core.HumanMainTask import SnapHumanAnalysis, UpdateStatus
-# from api.human_core.SmokingMainTask import SnapSandCAnalysis, SCUpdateStatus
 from api.human_core.MultiMainTask import SnapMultiAnalysis, MultiUpdateStatus
 from scheduler_utils import Scheduler
 from settings import TASK_RECORD_DIR
-from enum import Enum
 
 router = APIRouter()
 human_tasks_logger = logger.bind(name="HumanTasks")
 
 
-# class task_type(Enum):
-#     a = 'smoke'
-#     b = 'phone'
-#     c = 'pose'
-#
-#
-# def choice_detect_task(task_extends):
-#     """
-#     选择执行的检测任务
-#     :param task_extends: ['smoke', 'phone', 'pose']
-#     :return:
-#     """
-#     if len(task_extends) == 0:
-#         return SnapHumanAnalysis
-#     elif ('smoke' in task_extends) or ('phone' in task_extends):
-#         if 'pose' not in task_extends:
-#             return SnapSandCAnalysis
-#         else:
-#             return None
-#     else:
-#         return None
-
-
 @router.get("/get_human_tasks", response_model=List[schemas.HumanTaskSelect])
-async def get_human_tasks(db: AsyncSession = Depends(deps.get_async_db)):
+async def get_human_tasks(db: AsyncSession = Depends(deps.get_db)):
     """
     Get all human-tasks.
     """
-    query = await db.execute(models.HumanTask.__table__.select().order_by(models.HumanTask.id.desc()))
-    human_tasks = query.fetchall()
-    human_tasks_logger.success("GetAllHumanTasks successfully")
-    return human_tasks
+    query = db.query(models.HumanTask).order_by(desc(models.HumanTask.id)).all()
+    return query
 
 
 @router.get("/get_HumanTask_ByToken/{task_token}")
-async def get_human_task_by_token(task_token: str, db: AsyncSession = Depends(deps.get_async_db)):
+async def get_human_task_by_token(task_token: str, db: AsyncSession = Depends(deps.get_db)):
     """
     Get human-task by task_token
     :param task_token:
     :param db:
     :return:
     """
-    stmt = select(models.HumanTask).filter_by(task_token=task_token)
-    result = await db.execute(stmt)
-    human_task = result.scalar_one_or_none()
+    query = db.query(models.HumanTask).filter_by(task_token=task_token)
     human_tasks_logger.success(f"GetHumanTaskByTaskToken successfully, task_token: {task_token}")
-    return human_task
+    return query.first()
 
 
 class AddHumanTask(BaseModel):

@@ -47,6 +47,7 @@ def distance2kps(points, distance, max_shape=None):
         preds.append(py)
     return np.stack(preds, axis=-1)
 
+
 class RetinaFace:
     def __init__(self, model_file=os.path.join(MODEL_DIR, "det_10g.onnx"), input_size=(640, 640)):
         self.model_file = model_file

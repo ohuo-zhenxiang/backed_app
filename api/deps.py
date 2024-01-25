@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import models, crud
 from core.security import SECRET_KEY, ALGORITHM
 from schemas import TokenPayload
-from db.session import SessionLocal, async_session
+from db.session import SessionLocal
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl="api/login/access-token")
 
@@ -20,14 +20,6 @@ def get_db() -> Generator:
             yield db
     finally:
         db.close()
-
-
-async def get_async_db() -> Generator:
-    try:
-        async with async_session() as db:
-            yield db
-    finally:
-        await db.close()
 
 
 def get_current_user(db: Session = Depends(get_db), token: str = Depends(reusable_oauth2)) -> models.user.User:

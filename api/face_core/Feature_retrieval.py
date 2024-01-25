@@ -6,6 +6,7 @@ from annoy import AnnoyIndex
 from api.face_core.ArcFace_extract import ArcFaceOrt
 from settings import FEATURE_LIB
 import numpy as np
+from redis_module import RedisModule
 
 
 class AnnoyTree:
@@ -29,8 +30,12 @@ class AnnoyTree:
         self.index_tree.build(512, n_jobs=-1)
 
         self.index_tree.save(os.path.join(FEATURE_LIB, f"{save_filename}.ann"))
-        with open(os.path.join(FEATURE_LIB, f"{save_filename}.pickle"), "wb") as f:
-            pickle.dump((self.ids_list, self.names_list), f)
+
+        with RedisModule() as rds:
+            rds.set(f'Pickle_{save_filename}', pickle.dumps((self.ids_list, self.names_list)))
+
+        # with open(os.path.join(FEATURE_LIB, f"{save_filename}.pickle"), "wb") as f:
+        #     pickle.dump((self.ids_list, self.names_list), f)
 
         return True, None, None
 
@@ -40,8 +45,11 @@ class Retrieval:
 
     def __init__(self, task_id):
         # s = time.time()
-        with open(os.path.join(FEATURE_LIB, f"{task_id}.pickle"), "rb") as f:
-            self.fids, self.names = pickle.load(f)
+        # with open(os.path.join(FEATURE_LIB, f"{task_id}.pickle"), "rb") as f:
+        #     self.fids, self.names = pickle.load(f)
+        with RedisModule() as rds:
+            self.pickle_data = rds.get(f'Pickle_{task_id}')
+        self.fids, self.names = pickle.loads(self.pickle_data)
 
         self.index = AnnoyIndex(512, metric='dot')
         self.index.load(os.path.join(FEATURE_LIB, f"{task_id}.ann"))

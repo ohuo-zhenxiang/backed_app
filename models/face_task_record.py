@@ -11,6 +11,7 @@ class Task(Base):
     __tablename__ = "face_tasks"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    ex_detect = Column(ARRAY(String(250)), default=[])
     task_token = Column(String(255), nullable=False, index=True)
     name = Column(String(255), nullable=False, index=True)
     start_time = Column(DateTime, nullable=False)

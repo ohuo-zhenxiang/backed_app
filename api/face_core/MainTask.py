@@ -1,21 +1,23 @@
 import os.path
 import json
+from typing import List
 from settings import TASK_RECORD_DIR, LOGGING_DIR, REC_THRESHOLD
 
-from .Feature_retrieval import Retrieval
-from .RetinaFace_detect import RetinaFace
-from .ArcFace_extract import ArcFaceOrt
+from api.face_core.Feature_retrieval import Retrieval
+from api.face_core.RetinaFace_detect import RetinaFace
+from api.face_core.SilentFaceAntiSpoofing import SilentFaceAntiSpoofing
 from db.session import SessionLocal
 from models import Record, Task
 
 from func_timeout import func_set_timeout
+from func_timeout.exceptions import FunctionTimedOut
 from datetime import datetime
 import cv2
 import time
 from redis_module import RedisModule
 
 
-def snap_analysis(task_token: str, capture_path: str, save_fold: str, _logger):
+def snap_analysis(task_token: str, ex_detect: List[str], capture_path: str, save_fold: str, _logger):
     @func_set_timeout(3)
     def capture_init(path):
         capture = cv2.VideoCapture(path)
@@ -31,11 +33,11 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str, _logger):
         s = time.time()
         cap = capture_init(capture_path)
         _logger.info(f"capture init success, take times: {round(time.time() - s, 3)}s")
-    except Exception as e:
+    except FunctionTimedOut as e:
         _logger.error("can't init capture")
         task_status = "Capture Error"
         return task_status, task_result, start_time, face_count, record_image_path, record_names
-    if cap is not None:
+    else:
         ret, frame = cap.read()
         if not ret:
             cap.release()
@@ -53,6 +55,7 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str, _logger):
                 faces_list = []
                 if bboxes_5.shape[0] > 0:
                     for i, bbox in enumerate(bboxes_5):
+                        temp_dict = {}
                         box = bbox[:-1].astype(int)
                         detect_score = bbox[-1]
                         kps = kpss[i]
@@ -66,18 +69,30 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str, _logger):
                         else:
                             label = "UNK"
                             label_id = "UNK"
-                        temp_dict = {
-                            "box": box.tolist(),
-                            "detect_score": round(float(detect_score), 3),
-                            "kps": kps.tolist(),
-                            "label": label,
-                            "label_id": label_id}
+
+                        if 'SFAS' in ex_detect:
+                            sfas = SilentFaceAntiSpoofing()
+                            sfas_label, sfas_trueness = sfas.forward(box=box, img=img)
+                        else:
+                            sfas_label = 1
+                            sfas_trueness = 1.0
+
+                        temp_dict.update(
+                            {
+                                "box": box.tolist(),
+                                "detect_score": round(float(detect_score), 3),
+                                "kps": kps.tolist(),
+                                "label": label,
+                                "label_id": label_id,
+                                "is_fake": False if sfas_label == 1 else True,
+                                "sfas_trueness": round(float(sfas_trueness), 3)
+                            }
+                        )
                         faces_list.append(temp_dict)
                         '''230907 不再后端画框，返原图和坐标前端绘制'''
                         # cv2.rectangle(img, (box[0], box[1]), (box[2], box[3]), color=(0, 255, 0), thickness=2)
                         # cv2.putText(img, f"{label}", (box[0] + 5, box[1] - 5), cv2.FONT_HERSHEY_SIMPLEX,
                         #             0.8, (0, 255, 0), 2)
-
                 cv2.imwrite(os.path.join(save_fold, f"{start_time.strftime('%Y-%m-%d %H-%M-%S')}.jpg"), img)
                 task_status = "Task Completed"
                 task_result = {"faces": faces_list, "task_status": task_status,
@@ -98,10 +113,11 @@ def snap_analysis(task_token: str, capture_path: str, save_fold: str, _logger):
                 # print('-------', time.time() - sss)
 
 
-def SnapAnalysis(task_token: str, capture_path: str, save_fold: str):
+def SnapAnalysis(task_token: str, ex_detect: List[str], capture_path: str, save_fold: str):
     """
     SnapAnalysis
     :param task_token: 任务token
+    :param ex_detect: 扩展的检测，e.i. ['SFAS']
     :param capture_path: 流地址
     :param save_fold: 保存路径
     :return:
@@ -113,6 +129,7 @@ def SnapAnalysis(task_token: str, capture_path: str, save_fold: str):
                     enqueue=True)
 
     task_status, task_result, start_time, face_count, record_image_path, record_names = snap_analysis(task_token,
+                                                                                                      ex_detect,
                                                                                                       capture_path,
                                                                                                       save_fold,
                                                                                                       task_logger)

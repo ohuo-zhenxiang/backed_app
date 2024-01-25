@@ -6,12 +6,11 @@ from datetime import datetime
 import cv2
 from func_timeout import func_set_timeout
 
-from db.session import SessionLocal, async_session
+from db.session import SessionLocal
 from models import HumanTask, HumanRecord
-from redis_module import RedisModule
 from settings import LOGGING_DIR
-from .Smoking_detect import SmokingCallingDetect
 from .Human_detect import Profile
+from .Smoking_detect import SmokingCallingDetect
 
 
 def snap_sandc_analysis_core(task_token: str, capture_path: str | int, save_fold: str, _logger):

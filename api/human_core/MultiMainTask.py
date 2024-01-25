@@ -39,6 +39,7 @@ def snap_multi_analysis_core(task_token: str, task_ex: List[str], capture_path: 
     sss = time.time()
     # 先实例化人体检测，加载模型
     human_detect = HumanDetect_V2()
+    persons_res = []
 
     try:
         s = time.time()

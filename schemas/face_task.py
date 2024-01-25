@@ -6,6 +6,7 @@ from datetime import datetime
 class TaskBase(BaseModel):
     task_token: str
     name: str
+    ex_detect: List[str] = []
     start_time: datetime
     end_time: datetime
     interval_seconds: int

@@ -8,12 +8,11 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from fastapi import APIRouter, Depends, Form, BackgroundTasks
 from fastapi.responses import JSONResponse
-from fastapi_pagination import Page
-from fastapi_pagination.ext.sqlalchemy import paginate
 from loguru import logger
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, aliased
 from typing import List
+from pydantic import BaseModel
 
 import crud
 import models
@@ -23,7 +22,8 @@ from api.face_core.Feature_retrieval import AnnoyTree
 from api.face_core.MainTask import SnapAnalysis, UpdateStatus
 from db.session import SessionLocal
 from scheduler_utils import Scheduler
-from settings import TASK_RECORD_DIR, FEATURE_LIB
+from settings import TASK_RECORD_DIR, FEATURE_LIB, LOGGING_DIR
+from redis_module import RedisModule
 
 router = APIRouter()
 tasks_logger = logger.bind(name="FaceTasks")
@@ -50,6 +50,7 @@ def get_tasks(db: Session = Depends(deps.get_db)):
         models.Task.capture_path,
         models.Task.created_time,
         models.Task.interval_seconds,
+        models.Task.ex_detect,
         func.coalesce(group_alias.name, "None").label("associated_group_name"),
     ).all()
     tasks_logger.success("GetAllTasks successfully.")
@@ -77,14 +78,29 @@ def get_faces_feature_for_group(group_id: int):
     return id_name_features
 
 
+class AddFaceTask(BaseModel):
+    task_name: str
+    ex_detect: list[str] = []
+    interval_seconds: int
+    start_time: int
+    end_time: int
+    capture_path: str
+    associated_group_id: int
+
+
 @router.post("/add_task")
-def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
-             start_time: int = Form(...), end_time: int = Form(...),
-             capture_path: str = Form(...), associated_group_id: int = Form(...),
-             db: Session = Depends(deps.get_db)):
+def add_task(post_data:AddFaceTask, db: Session = Depends(deps.get_db)):
     """
     Add a new task to the scheduler.
     """
+    task_name = post_data.task_name
+    ex_detect = post_data.ex_detect
+    interval_seconds = post_data.interval_seconds
+    start_time = post_data.start_time
+    end_time = post_data.end_time
+    capture_path = post_data.capture_path
+    associated_group_id = post_data.associated_group_id
+
     you = crud.crud_task.get_by_task_name(db, task_name=task_name)
     if you:
         tasks_logger.error(f"Task {task_name} already exists.")
@@ -108,7 +124,9 @@ def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
             if start_timestamp < datetime.now():
                 status = "Running"
                 trigger = IntervalTrigger(seconds=interval_seconds, end_date=end_timestamp, timezone='Asia/Shanghai')
-                crud.crud_task.create_task(db, task_name=task_name, task_token=task_token,
+                crud.crud_task.create_task(db, task_name=task_name,
+                                           ex_detect=ex_detect,
+                                           task_token=task_token,
                                            interval_seconds=interval_seconds,
                                            start_time=start_time, end_time=end_time, capture_path=capture_path,
                                            status=status, associated_group_id=associated_group_id)
@@ -116,7 +134,9 @@ def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
                 status = "Waiting"
                 trigger = IntervalTrigger(seconds=interval_seconds, start_date=start_timestamp, end_date=end_timestamp,
                                           timezone='Asia/Shanghai')
-                crud.crud_task.create_task(db, task_name=task_name, task_token=task_token,
+                crud.crud_task.create_task(db, task_name=task_name,
+                                           ex_detect=ex_detect,
+                                           task_token=task_token,
                                            interval_seconds=interval_seconds,
                                            start_time=start_time, end_time=end_time, capture_path=capture_path,
                                            status=status, associated_group_id=associated_group_id)
@@ -130,7 +150,7 @@ def add_task(task_name: str = Form(...), interval_seconds: int = Form(...),
             # 正餐
             job_create = Scheduler.add_job(
                 SnapAnalysis, trigger,
-                args=[task_token, capture_path, save_fold],
+                args=[task_token, ex_detect, capture_path, save_fold],
                 id=task_token, name=task_name, executor="process",
                 # jobstore='redis'
             )
@@ -177,15 +197,23 @@ async def delete_task_async(task_token: str):
     """
     删除任务
     """
+
+    # 1. stop and remove scheduler_job
     if Scheduler.get_job(task_token):
         Scheduler.remove_job(task_token)
         time.sleep(1)
 
-    shutil.rmtree(os.path.join(TASK_RECORD_DIR, task_token))
+    # 2. remove .ann file and pickle file (redis)
+    try:
+        shutil.rmtree(os.path.join(TASK_RECORD_DIR, task_token))
+    except (PermissionError, FileNotFoundError) as e:
+        print(e)
     ann_deleted = safe_remove_file(os.path.join(FEATURE_LIB, f"{task_token}.ann"))
-    pickle_deleted = safe_remove_file(os.path.join(FEATURE_LIB, f"{task_token}.pickle"))
 
-    if ann_deleted and pickle_deleted:
+    with RedisModule() as rds:
+        res_bool = rds.delete(f"Pickle_{task_token}")
+
+    if ann_deleted and res_bool:
         tasks_logger.success(f"Task file deleted successfully")
     else:
         tasks_logger.error(f"Task file delete failed")
