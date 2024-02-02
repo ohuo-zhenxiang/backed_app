@@ -9,6 +9,8 @@ class HumanRecordBase(BaseModel):
     start_time: datetime
     human_count: int
     record_image_path: Optional[str]
+    record_status: Optional[str]
+    error_info: Optional[str]
 
 
 class HumanInfo(HumanRecordBase):

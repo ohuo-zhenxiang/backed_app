@@ -1,15 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from datetime import timedelta
+from jose import jwt, JWTError
 from typing import Any
 
 import schemas, models, crud
 from core import security
 from api import deps
 from settings import ACCESS_TOKEN_EXPIRE_MINUTES
+from core.security import ALGORITHM, SECRET_KEY
 from loguru import logger
 
 login_logger = logger.bind(name="Login")
@@ -36,4 +38,16 @@ def login_access_token(db: Session = Depends(deps.get_db), form_data: OAuth2Pass
     login_logger.success(f"{form_data.username} login success")
     return {"access_token": security.create_access_token(user.id, expires_delta=access_token_expires),
             "token_type": "bearer"}
+
+
+@router.get('/getUserInfo', response_model=schemas.user.User)
+def get_user_info(authorization: str = Header(..., convert_underscores=False), db: Session = Depends(deps.get_db)):
+    _, token = authorization.split(' ')
+    try:
+        user_info = deps.get_current_user(token, db)
+    except Exception as e:
+        login_logger.error(f"get user info error: {e}")
+        return JSONResponse(status_code=401, content={"error": f"{e}"})
+    else:
+        return user_info
 

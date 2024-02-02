@@ -149,3 +149,18 @@ async def check_all_rtsp_or_rtmp(db: Session = Depends(deps.get_db)):
             db.commit()
 
     return JSONResponse(status_code=200, content={"message": "All cameras checked and updated"})
+
+
+@router.get("/connectionTest/{stream_url:path}")
+async def connection_test(stream_url: str):
+    stream_header = stream_url[:4]
+    if stream_header == 'rtsp' or stream_header == 'rtmp':
+        is_rtmp = True if stream_header == 'rtmp' else False
+
+        is_ready, message = tools.check_rtsp_rtmp_stream(url=stream_url, is_rtmp=is_rtmp)
+        if is_ready:
+            return JSONResponse(status_code=200, content={"message": "Connection is successfully"})
+        else:
+            return JSONResponse(status_code=400, content={"message": "Connection failed"})
+    else:
+        return JSONResponse(status_code=400, content={"message": "Invalid stream URL"})

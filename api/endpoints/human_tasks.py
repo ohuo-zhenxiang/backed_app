@@ -18,7 +18,7 @@ from pydantic import BaseModel
 import crud
 import models
 import schemas
-from api import deps
+from api import deps, tools
 from api.human_core.MultiMainTask import SnapMultiAnalysis, MultiUpdateStatus
 from scheduler_utils import Scheduler
 from settings import TASK_RECORD_DIR
@@ -75,6 +75,16 @@ def add_human_task(data: AddHumanTask, db: Session = Depends(deps.get_db)):
         human_tasks_logger.error(f"HumanTask: {task_name} already exists")
         return JSONResponse(status_code=409, content={"message": "HumanTask already exists"})
     else:
+        stream_header = capture_path[:4]
+        if stream_header != "rtsp" and stream_header != "rtmp":
+            human_tasks_logger.error(f"{capture_path} is not a valid RTSP or RTMP URL.")
+            return JSONResponse(status_code=410, content={"message": "capture_path is not a valid RTSP or RTMP URL."})
+        is_rtmp = True if stream_header == "rtmp" else False
+        s, m = tools.check_rtsp_rtmp_stream(url=capture_path, is_rtmp=is_rtmp)
+        if not s:
+            human_tasks_logger.error(f"{m}")
+            return JSONResponse(status_code=410, content={"message": m})
+
         task_token = str(uuid.uuid4())
 
         capture_path = capture_path.replace("\\", "/")

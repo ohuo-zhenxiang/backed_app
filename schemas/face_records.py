@@ -6,8 +6,10 @@ from datetime import datetime
 class RecordBase(BaseModel):
     id: int
     start_time: datetime
-    face_count: int
+    face_count: Optional[int]
     record_image_path: Optional[str]
+    record_status: Optional[str]
+    error_info: Optional[str]
 
 
 class FaceInfo(BaseModel):

@@ -14,6 +14,7 @@ from api.human_core.Smoking_detect import SmokingCallingDetect_V2
 from api.human_core.utils import Profile
 from db.session import SessionLocal
 from models import HumanRecord, HumanTask
+from redis_module import RedisModule
 from settings import LOGGING_DIR
 
 task2model = {
@@ -34,10 +35,12 @@ def snap_multi_analysis_core(task_token: str, task_ex: List[str], capture_path: 
         return capture
 
     start_time = datetime.now().replace(microsecond=0)
-    task_status, task_result, human_count, record_image_path = '', {}, 0, ''
+
+    # 增record_status和error_info记录任务状态和错误信息
+    record_status, task_result, human_count, record_image_path = '', {}, 0, ''
 
     sss = time.time()
-    # 先实例化人体检测，加载模型
+    # 先实例化人体检测，加载模型，热干面的面
     human_detect = HumanDetect_V2()
     persons_res = []
 
@@ -47,17 +50,18 @@ def snap_multi_analysis_core(task_token: str, task_ex: List[str], capture_path: 
         _logger.info(f"capture init success, take times: {(time.time() - s):.3f}")
     except FunctionTimedOut as e:
         _logger.error("can't init capture")
-        task_status = "Capture Error"
-        return task_status, task_result, start_time, human_count, record_image_path
+        record_status, error_info = "Record Failed", "can't init capture"
+        return record_status, error_info, task_result, start_time, human_count, record_image_path
     else:
         ret, frame = cap.read()
         if not ret:
             cap.release()
             _logger.error("can't read frame")
-            task_status = "Capture Error"
-            return task_status, task_result, start_time, human_count, record_image_path
+            record_status, error_info = "Record Failed", "can't read frame"
+            return record_status, error_info, task_result, start_time, human_count, record_image_path
         else:
             img0 = frame.copy()
+            # 相对地址
             record_image_path = os.path.join('./TaskRecord', f"{task_token}",
                                              f"{start_time.strftime('%Y-%m-%d %H-%M-%S')}.jpg")
 
@@ -83,24 +87,26 @@ def snap_multi_analysis_core(task_token: str, task_ex: List[str], capture_path: 
 
                     # pprint([x.model_dump() for x in persons_res])
                 cv2.imwrite(os.path.join(save_fold, f"{start_time.strftime('%Y-%m-%d %H-%M-%S')}.jpg"), frame)
-                task_status, human_count = "Task Completed", len(persons_res)
+                record_status, error_info = 'Record Completed', ''
+                human_count = len(persons_res)
                 task_result = {
                     "humans": [x.model_dump() for x in persons_res],
                     "humans_count": human_count,
-                    "task_status": task_status
+                    "record_status": record_status
                 }
                 _logger.success(
-                    f"Task Completed; {len(persons_res)} humans detected | take times: {(time.time() - sss):.3f}")
+                    f"Record Completed; {len(persons_res)} humans detected | take times: {(time.time() - sss):.3f}")
+                return record_status, error_info, task_result, start_time, human_count, record_image_path
 
             except Exception as e:
                 print(e)
-                task_status = "Task Failed"
-                task_result = {"humans": [], "humans_count": 0, "task_status": task_status}
+                record_status, error_info = "Task Failed", ''
+                task_result = {"humans": [], "humans_count": 0}
                 _logger.error(f"Task Failed | error: {e}")
+                return record_status, error_info, task_result, start_time, human_count, record_image_path
             finally:
                 cap.release()
                 _logger.complete()
-                return task_status, task_result, start_time, human_count, record_image_path
 
 
 def SnapMultiAnalysis(task_token: str, task_ex: List[str], capture_path: str | int, save_fold: str):
@@ -118,21 +124,38 @@ def SnapMultiAnalysis(task_token: str, task_ex: List[str], capture_path: str | i
     task_logger.add(f"{LOGGING_DIR}/HUMAN_TASK_{task_token}.log", rotation="200 MB", retention="30 days",
                     encoding="utf-8", enqueue=True)
 
-    task_status, task_result, start_time, human_count, record_image_path = snap_multi_analysis_core(task_token,
-                                                                                                    task_ex,
-                                                                                                    capture_path,
-                                                                                                    save_fold,
-                                                                                                    task_logger)
+    record_status, error_info, task_result, start_time, human_count, record_image_path = snap_multi_analysis_core(
+        task_token,
+        task_ex,
+        capture_path,
+        save_fold,
+        task_logger)
+    completed_time = datetime.now().replace(microsecond=0)
     db = SessionLocal()
     try:
         db_obj = HumanRecord(start_time=start_time,
                              human_count=human_count,
                              record_info=json.dumps(task_result),
                              task_token=task_token,
-                             completed_time=datetime.now().replace(microsecond=0),
-                             record_image_path=record_image_path)
+                             completed_time=completed_time,
+                             record_image_path=record_image_path,
+                             record_status=record_status,
+                             error_info=error_info)
         db.add(db_obj)
         db.commit()
+
+        # redis publish
+        with RedisModule() as R:
+            R.publish(f"{task_token}",
+                      json.dumps({
+                          "status": record_status, "record_info": task_result,
+                          "start_time": start_time.strftime('%Y-%m-%d %H-%M-%S'),
+                          "completed_time": completed_time.strftime('%Y-%m-%d %H-%M-%S'),
+                          "human_count": human_count,
+                          "record_image_path": record_image_path,
+                          "record_status": record_status,
+                          "error_info": error_info,
+                      }))
     finally:
         db.close()
 

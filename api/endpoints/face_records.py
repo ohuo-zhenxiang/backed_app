@@ -1,15 +1,11 @@
-import os
 import schemas
 import models
-import crud
 from api import deps
-from fastapi import APIRouter, Depends, HTTPException, status, Form
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from fastapi_pagination.ext.sqlalchemy import paginate
 from fastapi_pagination import Page
-from db.session import SessionLocal
 
 router = APIRouter()
 

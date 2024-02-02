@@ -8,5 +8,5 @@ class Token(BaseModel):
 
 
 class TokenPayload(BaseModel):
-    sub: Optional[int] = None
-    # Optional[int] == Union[int, None], int or None, -----can't Optional[int, None]-----
+    exp: Optional[int] = None
+    user_id: Optional[str] = None

@@ -12,9 +12,12 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     def get_by_phone(self, db: Session, *, phone: str) -> Optional[User]:
         return db.query(User).filter(User.phone == phone).first()
 
+    def get_by_id(self, db: Session, *, user_id: int) -> Optional[User]:
+        return db.query(User).filter(User.id == user_id).first()
+
     def create(self, db: Session, *, obj_in: UserCreate) -> User:
         db_obj = User(phone=obj_in.phone, hashed_password=get_password_hash(obj_in.password),
-                      full_name=obj_in.full_name, is_superuser=obj_in.is_superuser)
+                      full_name=obj_in.full_name, is_superuser=obj_in.is_superuser, permissions=obj_in.permissions)
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)

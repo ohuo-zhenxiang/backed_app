@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Boolean, Column, Integer, String, LargeBinary, DateTime
+from sqlalchemy import Boolean, Column, Integer, String, JSON
 from sqlalchemy.orm import relationship
 from db.base_class import Base
 
@@ -13,3 +13,4 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_activate = Column(Boolean(), default=True)
     is_superuser = Column(Boolean(), default=False)
+    permissions = Column(JSON, nullable=True)

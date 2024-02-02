@@ -30,6 +30,8 @@ class HumanRecord(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     start_time = Column(DateTime, nullable=False)
     completed_time = Column(DateTime, nullable=False)
+    record_status = Column(String(255), nullable=False, index=True)
+    error_info = Column(String(255), nullable=True)
     human_count = Column(Integer, nullable=False)
     record_info = Column(JSON, nullable=True)
     record_image_path = Column(String(255), nullable=True)

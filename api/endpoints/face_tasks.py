@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
-from fastapi import APIRouter, Depends, Form, BackgroundTasks
+from fastapi import APIRouter, Depends, BackgroundTasks
 from fastapi.responses import JSONResponse
 from loguru import logger
 from sqlalchemy import desc, func
@@ -17,7 +17,7 @@ from pydantic import BaseModel
 import crud
 import models
 import schemas
-from api import deps
+from api import deps, tools
 from api.face_core.Feature_retrieval import AnnoyTree
 from api.face_core.MainTask import SnapAnalysis, UpdateStatus
 from db.session import SessionLocal
@@ -106,6 +106,16 @@ def add_task(post_data:AddFaceTask, db: Session = Depends(deps.get_db)):
         tasks_logger.error(f"Task {task_name} already exists.")
         return JSONResponse(status_code=409, content={"message": "Task already exists."})
     else:
+        stream_header = capture_path[:4]
+        if stream_header != "rtsp" and stream_header != "rtmp":
+            tasks_logger.error(f"{capture_path} is not a valid RTSP or RTMP URL.")
+            return JSONResponse(status_code=410, content={"message": "capture_path is not a valid RTSP or RTMP URL."})
+        is_rtmp = True if stream_header == "rtmp" else False
+        s, m = tools.check_rtsp_rtmp_stream(url=capture_path, is_rtmp=is_rtmp)
+        if not s:
+            tasks_logger.error(f"{m}")
+            return JSONResponse(status_code=410, content={"message": m})
+
         task_token = str(uuid.uuid4())
         capture_path = capture_path.replace("\\", "/")
         start_timestamp = datetime.fromtimestamp(start_time / 1000)

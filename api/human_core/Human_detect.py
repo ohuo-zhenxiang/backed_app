@@ -265,8 +265,8 @@ class HumanDetect:
 class HumanDetect_V2:
     def __init__(self, weight1=os.path.join(MODEL_DIR, 'yolov5x.onnx'), is_gpu=False):
         self.weight_1 = weight1
-        self.conf_thres = 0.5
-        self.iou_thres = 0.5
+        self.conf_thres = 0.6
+        self.iou_thres = 0.6
         self.device = torch.device('cuda' if torch.cuda.is_available() and is_gpu else 'cpu')
         self.providers = ['CPUExecutionProvider', 'CUDAExecutionProvider'] if is_gpu else ['CPUExecutionProvider']
 
