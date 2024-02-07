@@ -1,4 +1,4 @@
-from typing import Generator, Annotated
+from typing import Generator
 from pydantic import ValidationError
 
 from fastapi import Depends, HTTPException, status
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import models, crud
 from core.security import SECRET_KEY, ALGORITHM
 from schemas import TokenPayload
-from db.session import SessionLocal
+from db.session import SessionLocal, AsyncSessionLocal
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl="api/login/access-token")
 
@@ -20,6 +20,14 @@ def get_db() -> Generator:
             yield db
     finally:
         db.close()
+
+
+async def get_async_db() -> Generator:
+    try:
+        async with AsyncSessionLocal() as db:
+            yield db
+    finally:
+        await db.close()
 
 
 def get_current_user(token: str, db) -> models.user.User:

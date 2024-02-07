@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Form, BackgroundTasks
 from fastapi.responses import JSONResponse
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -27,26 +28,42 @@ router = APIRouter()
 human_tasks_logger = logger.bind(name="HumanTasks")
 
 
+# @router.get("/get_human_tasks", response_model=List[schemas.HumanTaskSelect])
+# async def get_human_tasks(db: AsyncSession = Depends(deps.get_db)):
+#     """
+#     Get all human-tasks.
+#     """
+#     query = db.query(models.HumanTask).order_by(desc(models.HumanTask.id)).all()
+#     return query
+
 @router.get("/get_human_tasks", response_model=List[schemas.HumanTaskSelect])
-async def get_human_tasks(db: AsyncSession = Depends(deps.get_db)):
-    """
-    Get all human-tasks.
-    """
-    query = db.query(models.HumanTask).order_by(desc(models.HumanTask.id)).all()
-    return query
+async def get_human_tasks(db: AsyncSession = Depends(deps.get_async_db)):
+    query = await db.execute(models.HumanTask.__table__.select().order_by(models.HumanTask.id.desc()))
+    human_tasks = query.fetchall()
+    human_tasks_logger.success("GetAllHumanTasks successfully")
+    return human_tasks
 
 
-@router.get("/get_HumanTask_ByToken/{task_token}")
-async def get_human_task_by_token(task_token: str, db: AsyncSession = Depends(deps.get_db)):
-    """
-    Get human-task by task_token
-    :param task_token:
-    :param db:
-    :return:
-    """
-    query = db.query(models.HumanTask).filter_by(task_token=task_token)
+# @router.get("/get_HumanTask_ByToken/{task_token}")
+# async def get_human_task_by_token(task_token: str, db: Session = Depends(deps.get_db)):
+#     """
+#     Get human-task by task_token
+#     :param task_token:
+#     :param db:
+#     :return:
+#     """
+#     query = db.query(models.HumanTask).filter_by(task_token=task_token)
+#     human_tasks_logger.success(f"GetHumanTaskByTaskToken successfully, task_token: {task_token}")
+#     return query.first()
+
+
+@router.get("/get_HumanTask_ByToken/{task_token}", response_model=schemas.HumanTaskSelect)
+async def get_human_task_by_token(task_token: str, db: AsyncSession = Depends(deps.get_async_db)):
+    stmt = select(models.HumanTask).filter_by(task_token=task_token)
+    result = await db.execute(stmt)
+    human_task = result.scalar_one_or_none()
     human_tasks_logger.success(f"GetHumanTaskByTaskToken successfully, task_token: {task_token}")
-    return query.first()
+    return human_task
 
 
 class AddHumanTask(BaseModel):

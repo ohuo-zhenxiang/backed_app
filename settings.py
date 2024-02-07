@@ -24,6 +24,8 @@ app_config = config['app']
 REC_THRESHOLD = float(config['reg_threshold'])
 
 SQLALCHEMY_DATABASE_URI: str = f"postgresql://{postgresql_config['username']}:{postgresql_config['password']}@{postgresql_config['host']}:{postgresql_config['port']}/{postgresql_config['database']}"
+
+SQLALCHEMY_ASYNC_DATABASE_URI: str = f"postgresql+asyncpg://{postgresql_config['username']}:{postgresql_config['password']}@{postgresql_config['host']}:{postgresql_config['port']}/{postgresql_config['database']}"
 # redis config
 REDIS_CONFIG = {"redis_host": redis_config['host'],
                 "redis_port": redis_config['port'],
