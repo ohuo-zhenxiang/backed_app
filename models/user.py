@@ -13,4 +13,5 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_activate = Column(Boolean(), default=True)
     is_superuser = Column(Boolean(), default=False)
-    permissions = Column(JSON, nullable=True)
+    role = Column(String, nullable=False)
+    routes = Column(JSON, nullable=True)

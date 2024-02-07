@@ -7,7 +7,8 @@ class UserBase(BaseModel):
     is_active: Optional[bool] = True
     is_superuser: bool = False
     full_name: Optional[str] = None
-    permissions: Optional[str] = None
+    routes: Optional[str] = None
+    role: Optional[str] = None
 
 
 class UserCreate(UserBase):

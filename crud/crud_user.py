@@ -17,7 +17,8 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
     def create(self, db: Session, *, obj_in: UserCreate) -> User:
         db_obj = User(phone=obj_in.phone, hashed_password=get_password_hash(obj_in.password),
-                      full_name=obj_in.full_name, is_superuser=obj_in.is_superuser, permissions=obj_in.permissions)
+                      full_name=obj_in.full_name, is_superuser=obj_in.is_superuser,
+                      routes=obj_in.routes, role=obj_in.role)
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
@@ -43,7 +44,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return user
 
     def is_activate(self, user: User) -> bool:
-        return user.is_superuser
+        return user.is_activate
 
     def is_superuser(self, user: User) -> bool:
         return user.is_superuser

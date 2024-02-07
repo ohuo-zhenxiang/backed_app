@@ -1,11 +1,14 @@
+import json
+
 from sqlalchemy.orm import Session
-import crud, schemas
+
+import crud
+import schemas
 import settings
 from db.base_class import Base
 from db.session import engine
-import json
 
-init_permissions = [
+init_routes = [
     {
         'label': '系统总览',
         'value': 'dashboard_overview'
@@ -40,11 +43,23 @@ init_permissions = [
 def init_db(db: Session) -> None:
     Base.metadata.create_all(bind=engine)
 
-    user = crud.crud_user.get_by_phone(db, phone=settings.FIRST_SUPERUSER)
-    if not user:
-        user_in = schemas.UserCreate(phone=settings.FIRST_SUPERUSER,
-                                     password=settings.FIRST_SUPERUSER_PASSWORD,
-                                     is_superuser=True,
-                                     permissions=json.dumps(init_permissions),
-                                     )
-        user = crud.crud_user.create(db, obj_in=user_in)
+    # create super-user
+    admin_user = crud.crud_user.get_by_phone(db, phone=settings.FIRST_SUPERUSER)
+    if not admin_user:
+        admin_user_in = schemas.UserCreate(phone=settings.FIRST_SUPERUSER,
+                                           password=settings.FIRST_SUPERUSER_PASSWORD,
+                                           is_superuser=True,
+                                           routes=json.dumps(init_routes),
+                                           role='admin',
+                                           )
+        admin_user = crud.crud_user.create(db, obj_in=admin_user_in)
+
+    # create user-user
+    user_user = crud.crud_user.get_by_phone(db, phone='user')
+    if not user_user:
+        user_user_in = schemas.UserCreate(phone='user',
+                                          password='user',
+                                          role='user',
+                                          routes=json.dumps(init_routes),
+                                          )
+        user_user = crud.crud_user.create(db, obj_in=user_user_in)
